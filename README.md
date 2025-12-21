@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
   # Ecotrack Mobile App UI
 
@@ -9,3 +10,6 @@
 
   Run `npm run dev` to start the development server.
   
+=======
+# Ecotrack
+>>>>>>> c3408abd5b83b7236e98eedbebb1249f86fabf57
