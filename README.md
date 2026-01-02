@@ -13,3 +13,16 @@
 =======
 # Ecotrack
 >>>>>>> c3408abd5b83b7236e98eedbebb1249f86fabf57
+
+ecotrack-mobile-app-ui/
+├── public/
+│ ├── index.html
+│ └── favicon.ico
+├── src/
+│ ├── App.js
+│ ├── index.js
+│ └── components/
+│ └── index.js
+├── package.json
+└── README.md
+
