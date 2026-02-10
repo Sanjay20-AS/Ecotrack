@@ -1,133 +1,684 @@
-import { Users, Trophy, TrendingUp, Award } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Users, Trophy, TrendingUp, Award, Plus, Search, UserPlus, LogOut, Medal, Crown, Star } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
-import { Progress } from "../components/ui/progress";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
+import { communityAPI, userAPI } from "../services/apiService";
+
+interface Community {
+  id: number;
+  name: string;
+  description: string;
+  memberCount: number;
+  category: string;
+  creator: any;
+}
+
+interface CommunityStats {
+  memberCount: number;
+  totalWasteLogged: number;
+  communityName: string;
+  category: string;
+}
+
+interface CommunityMember {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  joinedAt: string;
+}
+
+interface LeaderboardEntry {
+  id: number;
+  name: string;
+  role: string;
+  totalWaste: number;
+  wasteEntries: number;
+  rank: number;
+  joinedAt: string;
+}
 
 export function CommunityScreen() {
-  const leaderboard = [
-    { name: "Alex Chen", points: 1250, avatar: "AC", rank: 1 },
-    { name: "Sarah J.", points: 1180, avatar: "SJ", rank: 2 },
-    { name: "Mike Wilson", points: 1050, avatar: "MW", rank: 3 },
-    { name: "Emily Davis", points: 980, avatar: "ED", rank: 4 },
-    { name: "John Smith", points: 920, avatar: "JS", rank: 5 },
-  ];
+  const [userCommunity, setUserCommunity] = useState<Community | null>(null);
+  const [communityStats, setCommunityStats] = useState<CommunityStats | null>(null);
+  const [communityMembers, setCommunityMembers] = useState<CommunityMember[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showMembersDialog, setShowMembersDialog] = useState(false);
+  const [showLeaderboardDialog, setShowLeaderboardDialog] = useState(false);
+  const [availableCommunities, setAvailableCommunities] = useState<Community[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const challenges = [
-    { title: "Zero Food Waste Week", progress: 65, days: "3 days left" },
-    { title: "E-waste Collection Drive", progress: 80, days: "5 days left" },
-  ];
+  const [createFormData, setCreateFormData] = useState({
+    name: "",
+    description: "",
+    category: "GENERAL"
+  });
 
+  useEffect(() => {
+    loadUserCommunity();
+  }, []);
+
+  const loadUserCommunity = async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+      if (userId) {
+        // Get fresh user data from API to ensure we have current community status
+        const freshUserData = await userAPI.getUserById(parseInt(userId));
+        
+        // Update localStorage with fresh data
+        localStorage.setItem("user", JSON.stringify(freshUserData));
+        
+        if (freshUserData.community) {
+          setUserCommunity(freshUserData.community);
+          await loadCommunityStats(freshUserData.community.id);
+        }
+      } else {
+        // Fallback to localStorage if userId not found
+        const userData = localStorage.getItem("user");
+        if (userData) {
+          const user = JSON.parse(userData);
+          if (user.community) {
+            setUserCommunity(user.community);
+            await loadCommunityStats(user.community.id);
+          }
+        }
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error("Failed to load user community:", err);
+      // Fallback to localStorage on API error
+      try {
+        const userData = localStorage.getItem("user");
+        if (userData) {
+          const user = JSON.parse(userData);
+          if (user.community) {
+            setUserCommunity(user.community);
+            await loadCommunityStats(user.community.id);
+          }
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback failed:", fallbackErr);
+      }
+      setLoading(false);
+    }
+  };
+
+  const loadCommunityStats = async (communityId: number) => {
+    try {
+      const stats = await communityAPI.getCommunityStats(communityId);
+      setCommunityStats(stats);
+    } catch (err) {
+      console.error("Failed to load community stats:", err);
+    }
+  };
+
+  const loadCommunityMembers = async (communityId: number) => {
+    try {
+      const response = await communityAPI.getCommunityMembers(communityId);
+      setCommunityMembers(response.members || []);
+    } catch (err) {
+      console.error("Failed to load community members:", err);
+      setError("Failed to load community members");
+    }
+  };
+
+  const loadLeaderboard = async (communityId: number) => {
+    try {
+      const response = await communityAPI.getCommunityLeaderboard(communityId);
+      setLeaderboard(response.leaderboard || []);
+    } catch (err) {
+      console.error("Failed to load leaderboard:", err);
+      setError("Failed to load leaderboard");
+    }
+  };
+
+  const handleShowMembers = () => {
+    if (userCommunity) {
+      loadCommunityMembers(userCommunity.id);
+      setShowMembersDialog(true);
+    }
+  };
+
+  const handleShowLeaderboard = () => {
+    if (userCommunity) {
+      loadLeaderboard(userCommunity.id);
+      setShowLeaderboardDialog(true);
+    }
+  };
+
+  const getRankIcon = (rank: number) => {
+    switch (rank) {
+      case 1: return <Crown className="h-5 w-5 text-yellow-500" />;
+      case 2: return <Medal className="h-5 w-5 text-gray-400" />;
+      case 3: return <Medal className="h-5 w-5 text-amber-600" />;
+      default: return <Star className="h-5 w-5 text-blue-500" />;
+    }
+  };
+
+  const loadAvailableCommunities = async () => {
+    try {
+      const communities = await communityAPI.getAllCommunities();
+      setAvailableCommunities(communities);
+    } catch (err) {
+      console.error("Failed to load communities:", err);
+      setError("Failed to load communities");
+    }
+  };
+
+  const handleSearchCommunities = async () => {
+    if (!searchQuery.trim()) {
+      await loadAvailableCommunities();
+      return;
+    }
+    
+    try {
+      const communities = await communityAPI.searchCommunities(searchQuery);
+      setAvailableCommunities(communities);
+    } catch (err) {
+      console.error("Failed to search communities:", err);
+      setError("Failed to search communities");
+    }
+  };
+
+  const handleCreateCommunity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      setError("User not found");
+      return;
+    }
+
+    // Check if user is already in a community
+    if (userCommunity) {
+      setError("You're already in a community! Please leave your current community before creating a new one.");
+      setShowCreateDialog(false);
+      return;
+    }
+
+    try {
+      const communityData = {
+        ...createFormData,
+        creatorId: parseInt(userId)
+      };
+
+      const newCommunity = await communityAPI.createCommunity(communityData);
+      
+      // Update user data in localStorage
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        const user = JSON.parse(userData);
+        user.community = newCommunity;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      setUserCommunity(newCommunity);
+      await loadCommunityStats(newCommunity.id);
+      setShowCreateDialog(false);
+      setSuccess("Community created successfully!");
+      
+      // Reset form
+      setCreateFormData({
+        name: "",
+        description: "",
+        category: "GENERAL"
+      });
+    } catch (err: any) {
+      console.error("Failed to create community:", err);
+      
+      // Handle specific error for user already in community
+      if (err.message?.includes("already in a community")) {
+        setError("You're already in a community! Please leave your current community before creating a new one.");
+        setShowCreateDialog(false);
+        // Refresh user data to update UI
+        await loadUserCommunity();
+      } else {
+        setError(err.message || "Failed to create community");
+      }
+    }
+  };
+
+  const handleJoinCommunity = async (communityId: number) => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      setError("User not found");
+      return;
+    }
+
+    try {
+      const response = await communityAPI.joinCommunity(communityId, parseInt(userId));
+      
+      // Update user data in localStorage
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        const user = JSON.parse(userData);
+        user.community = response.community;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      setUserCommunity(response.community);
+      await loadCommunityStats(response.community.id);
+      setShowJoinDialog(false);
+      setSuccess("Successfully joined community!");
+    } catch (err: any) {
+      console.error("Failed to join community:", err);
+      
+      // Handle specific error for user already in community
+      if (err.message?.includes("already in a community")) {
+        setError("You're already in a community! Please leave your current community before joining a new one.");
+        setShowJoinDialog(false);
+        // Refresh user data to update UI
+        await loadUserCommunity();
+      } else {
+        setError(err.message || "Failed to join community");
+      }
+    }
+  };
+
+  const handleLeaveCommunity = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId || !userCommunity) return;
+
+    try {
+      await communityAPI.leaveCommunity(userCommunity.id, parseInt(userId));
+      
+      // Update user data in localStorage
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        const user = JSON.parse(userData);
+        user.community = null;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      setUserCommunity(null);
+      setCommunityStats(null);
+      setSuccess("Successfully left community!");
+    } catch (err: any) {
+      console.error("Failed to leave community:", err);
+      setError(err.message || "Failed to leave community");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center text-muted-foreground">Loading community...</div>
+      </div>
+    );
+  }
+
+  // If user doesn't have a community, show join/create UI
+  if (!userCommunity) {
+    return (
+      <div className="min-h-screen bg-background pb-6">
+        {/* Header */}
+        <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
+          <h1 className="text-2xl font-bold">Join a Community</h1>
+          <p className="text-sm opacity-90 mt-1">Connect with like-minded eco warriors</p>
+        </div>
+
+        <div className="px-6 py-6 space-y-6">
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+              {success}
+            </div>
+          )}
+
+          {/* Action Cards */}
+          <div className="grid grid-cols-1 gap-4">
+            <Card className="p-6 text-center">
+              <Users className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Find Community</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Join an existing community in your area
+              </p>
+              <Button 
+                onClick={() => {
+                  setShowJoinDialog(true);
+                  loadAvailableCommunities();
+                }}
+                className="w-full"
+              >
+                <Search className="h-4 w-4 mr-2" />
+                Browse Communities
+              </Button>
+            </Card>
+
+            <Card className="p-6 text-center">
+              <Plus className="h-12 w-12 text-secondary mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Start Community</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Create your own sustainability community
+              </p>
+              <Button 
+                variant="outline"
+                onClick={() => setShowCreateDialog(true)}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create New
+              </Button>
+            </Card>
+          </div>
+        </div>
+
+        {/* Join Community Dialog */}
+        <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
+          <DialogContent className="mx-4">
+            <DialogHeader>
+              <DialogTitle>Join a Community</DialogTitle>
+              <DialogDescription>
+                Browse and join existing communities to connect with other eco-warriors.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Search Communities</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter community name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button size="sm" onClick={handleSearchCommunities}>
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {availableCommunities.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No communities found</p>
+                ) : (
+                  availableCommunities.map((community) => (
+                    <Card key={community.id} className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{community.name}</h4>
+                          <p className="text-sm text-muted-foreground">{community.description}</p>
+                          <div className="flex items-center gap-4 mt-2 text-xs">
+                            <Badge variant="outline">{community.category}</Badge>
+                            <span className="text-muted-foreground">
+                              {community.memberCount} member{community.memberCount !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleJoinCommunity(community.id)}
+                        >
+                          Join
+                        </Button>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Community Dialog */}
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogContent className="mx-4">
+            <DialogHeader>
+              <DialogTitle>Create New Community</DialogTitle>
+              <DialogDescription>
+                Start your own sustainability community and invite others to join your mission.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleCreateCommunity} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Community Name</Label>
+                <Input
+                  placeholder="Enter community name..."
+                  value={createFormData.name}
+                  onChange={(e) => setCreateFormData({...createFormData, name: e.target.value})}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input
+                  placeholder="Describe your community..."
+                  value={createFormData.description}
+                  onChange={(e) => setCreateFormData({...createFormData, description: e.target.value})}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <select 
+                  className="w-full border rounded-lg px-3 py-2"
+                  value={createFormData.category}
+                  onChange={(e) => setCreateFormData({...createFormData, category: e.target.value})}
+                >
+                  <option value="GENERAL">General</option>
+                  <option value="RECYCLING">Recycling</option>
+                  <option value="COMPOSTING">Composting</option>
+                  <option value="E-WASTE">E-waste</option>
+                </select>
+              </div>
+
+              <Button type="submit" className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Community
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // If user has a community, show community dashboard
   return (
     <div className="min-h-screen bg-background pb-6">
       {/* Header */}
       <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold">Green Valley Community</h1>
-        <div className="flex items-center gap-6 mt-4 text-sm">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            <span>124 Members</span>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold">{userCommunity.name}</h1>
+            <p className="text-sm opacity-90 mt-1">{userCommunity.description}</p>
+            <div className="flex items-center gap-6 mt-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                <span>{communityStats?.memberCount || 0} Members</span>
+              </div>
+              <Badge variant="secondary" className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
+                {userCommunity.category}
+              </Badge>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Trophy className="h-5 w-5" />
-            <span>Rank #12</span>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLeaveCommunity}
+            className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/30"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
       <div className="px-6 py-6 space-y-6">
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+            {success}
+          </div>
+        )}
+
         {/* Community Stats */}
         <div>
-          <h2 className="text-lg font-semibold mb-4">Community Stats</h2>
+          <h2 className="text-lg font-semibold mb-4">Community Impact</h2>
           <div className="grid grid-cols-2 gap-3">
             <Card className="p-4 text-center">
               <TrendingUp className="h-6 w-6 text-primary mx-auto mb-2" />
-              <p className="text-2xl font-bold">450kg</p>
-              <p className="text-xs text-muted-foreground">Waste Reduced</p>
+              <p className="text-2xl font-bold">{communityStats?.totalWasteLogged || 0}kg</p>
+              <p className="text-xs text-muted-foreground">Waste Logged</p>
             </Card>
             <Card className="p-4 text-center">
-              <Award className="h-6 w-6 text-secondary mx-auto mb-2" />
-              <p className="text-2xl font-bold">12</p>
-              <p className="text-xs text-muted-foreground">Achievements</p>
+              <Users className="h-6 w-6 text-secondary mx-auto mb-2" />
+              <p className="text-2xl font-bold">{communityStats?.memberCount || 0}</p>
+              <p className="text-xs text-muted-foreground">Active Members</p>
             </Card>
           </div>
         </div>
 
-        {/* Leaderboard */}
+        {/* Member Details & Leaderboard */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Leaderboard</h2>
-            <select className="text-sm border rounded-lg px-3 py-1">
-              <option>This Month</option>
-              <option>This Week</option>
-              <option>All Time</option>
-            </select>
-          </div>
-          <div className="space-y-3">
-            {leaderboard.map((user, idx) => (
-              <Card key={idx} className="p-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-bold">
-                    {user.rank}
-                  </div>
-                  <Avatar>
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {user.avatar}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-sm text-muted-foreground">{user.points} points</p>
-                  </div>
-                  {user.rank <= 3 && (
-                    <Trophy className={`h-6 w-6 ${
-                      user.rank === 1 ? 'text-yellow-500' :
-                      user.rank === 2 ? 'text-gray-400' :
-                      'text-amber-600'
-                    }`} />
-                  )}
+          <h2 className="text-lg font-semibold mb-4">Community Details</h2>
+          <div className="grid grid-cols-1 gap-3">
+            <Card 
+              className="p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={handleShowMembers}
+            >
+              <div className="flex items-center justify-center gap-3">
+                <UserPlus className="h-6 w-6 text-blue-500" />
+                <div className="text-left">
+                  <p className="font-semibold">View Members</p>
+                  <p className="text-xs text-muted-foreground">See all community members</p>
                 </div>
-              </Card>
-            ))}
+              </div>
+            </Card>
+            
+            <Card 
+              className="p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={handleShowLeaderboard}
+            >
+              <div className="flex items-center justify-center gap-3">
+                <Trophy className="h-6 w-6 text-yellow-500" />
+                <div className="text-left">
+                  <p className="font-semibold">Leaderboard</p>
+                  <p className="text-xs text-muted-foreground">Top waste contributors</p>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
 
-        {/* Active Challenges */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Active Challenges</h2>
-          <div className="space-y-3">
-            {challenges.map((challenge, idx) => (
-              <Card key={idx} className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium">{challenge.title}</h3>
-                  <Badge variant="outline">{challenge.days}</Badge>
-                </div>
-                <Progress value={challenge.progress} className="h-2 mb-2" />
-                <p className="text-sm text-muted-foreground">{challenge.progress}% complete</p>
-              </Card>
-            ))}
-          </div>
-        </div>
+        {/* Engagement Message */}
+        <Card className="p-6 text-center">
+          <Trophy className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Keep Growing!</h3>
+          <p className="text-sm text-muted-foreground">
+            Your community is making a real impact. Keep logging waste and inspiring others!
+          </p>
+        </Card>
 
-        {/* Community Feed */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-          <div className="space-y-3">
-            {[1, 2, 3].map((_, idx) => (
-              <Card key={idx} className="p-4">
-                <div className="flex items-start gap-3">
-                  <Avatar>
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">User logged 5kg of e-waste</p>
-                    <p className="text-xs text-muted-foreground">2 hours ago</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+        {/* Members Dialog */}
+        <Dialog open={showMembersDialog} onOpenChange={setShowMembersDialog}>
+          <DialogContent className="mx-4 max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Community Members</DialogTitle>
+              <DialogDescription>
+                View all members of {userCommunity?.name}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {communityMembers.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">Loading members...</p>
+              ) : (
+                communityMembers.map((member) => (
+                  <Card key={member.id} className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold">{member.name}</p>
+                          <p className="text-xs text-muted-foreground">{member.email}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="outline" className="mb-1">
+                          {member.role}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground">
+                          Joined {new Date(member.joinedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Leaderboard Dialog */}
+        <Dialog open={showLeaderboardDialog} onOpenChange={setShowLeaderboardDialog}>
+          <DialogContent className="mx-4 max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Community Leaderboard</DialogTitle>
+              <DialogDescription>
+                Top waste contributors in {userCommunity?.name}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {leaderboard.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">Loading leaderboard...</p>
+              ) : (
+                leaderboard.map((entry) => (
+                  <Card key={entry.id} className={`p-4 ${entry.rank <= 3 ? 'border-yellow-200 bg-yellow-50' : ''}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          {getRankIcon(entry.rank)}
+                          <span className="font-bold text-lg">#{entry.rank}</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold">{entry.name}</p>
+                          <Badge variant="outline" className="text-xs">
+                            {entry.role}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary">{entry.totalWaste}kg</p>
+                        <p className="text-xs text-muted-foreground">
+                          {entry.wasteEntries} entries
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

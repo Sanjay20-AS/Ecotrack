@@ -1,21 +1,88 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { Trash2, Apple, Recycle, TrendingDown, Calendar, Lightbulb, Trophy, ChevronRight } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
+import { wasteAPI, userAPI } from "../services/apiService";
 
 export function HomeScreen() {
-  const stats = [
-    { label: "E-waste", value: "12.5", unit: "kg", icon: Trash2, color: "text-primary" },
-    { label: "Food Waste", value: "8.3", unit: "kg", icon: Apple, color: "text-secondary" },
+  const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>("DONOR");
+  const [wasteStats, setWasteStats] = useState({
+    eWaste: 0,
+    foodWaste: 0,
+    plasticWaste: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadUserAndStats();
+  }, []);
+
+  const loadUserAndStats = async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+      const userData = localStorage.getItem("user");
+      const role = localStorage.getItem("userRole") || "DONOR";
+
+      setUserRole(role);
+
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+
+      if (userId) {
+        const waste = await wasteAPI.getWasteByUserId(parseInt(userId));
+        
+        // Calculate stats
+        let eWaste = 0, foodWaste = 0, plasticWaste = 0;
+        
+        waste.forEach((item: any) => {
+          if (item.type === "E-WASTE") eWaste += item.quantity;
+          else if (item.type === "FOOD") foodWaste += item.quantity;
+          else if (item.type === "PLASTIC") plasticWaste += item.quantity;
+        });
+
+        setWasteStats({
+          eWaste: parseFloat(eWaste.toFixed(1)),
+          foodWaste: parseFloat(foodWaste.toFixed(1)),
+          plasticWaste: parseFloat(plasticWaste.toFixed(1)),
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getDonorStats = () => [
+    { label: "E-waste", value: wasteStats.eWaste.toString(), unit: "kg", icon: Trash2, color: "text-primary" },
+    { label: "Food Waste", value: wasteStats.foodWaste.toString(), unit: "kg", icon: Apple, color: "text-secondary" },
     { label: "CO₂ Saved", value: "45", unit: "kg", icon: TrendingDown, color: "text-accent" },
   ];
 
-  const quickActions = [
+  const getCollectorStats = () => [
+    { label: "Collections", value: "12", unit: "today", icon: Trash2, color: "text-primary" },
+    { label: "Total Waste", value: "156", unit: "kg", icon: Recycle, color: "text-secondary" },
+    { label: "Routes Done", value: "3", unit: "of 5", icon: TrendingDown, color: "text-accent" },
+  ];
+
+  const getDonorActions = () => [
     { label: "Log E-waste", icon: Trash2, path: "/app/track?type=ewaste", bg: "bg-primary" },
     { label: "Log Food", icon: Apple, path: "/app/track?type=food", bg: "bg-secondary" },
     { label: "Schedule", icon: Calendar, path: "/app/locations", bg: "bg-accent" },
   ];
+
+  const getCollectorActions = () => [
+    { label: "Start Route", icon: Trash2, path: "/app/track", bg: "bg-primary" },
+    { label: "View Pickups", icon: Calendar, path: "/app/community", bg: "bg-secondary" },
+    { label: "Update Status", icon: Recycle, path: "/app/track", bg: "bg-accent" },
+  ];
+
+  const stats = userRole === "COLLECTOR" ? getCollectorStats() : getDonorStats();
+  const quickActions = userRole === "COLLECTOR" ? getCollectorActions() : getDonorActions();
 
   const events = [
     { title: "E-waste Collection Drive", date: "Dec 20, 2025", location: "Community Center" },
@@ -29,22 +96,32 @@ export function HomeScreen() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <p className="text-sm opacity-90">Welcome back,</p>
-            <h1 className="text-2xl font-bold">Sarah Johnson</h1>
+            <h1 className="text-2xl font-bold">{user?.name || "User"}</h1>
+            {userRole === "COLLECTOR" && (
+              <p className="text-xs opacity-80">🚛 Collector Dashboard</p>
+            )}
           </div>
           <div className="w-12 h-12 bg-primary-foreground/20 rounded-full flex items-center justify-center">
             <Trophy className="h-6 w-6" />
           </div>
         </div>
 
-        {/* Community Progress */}
+        {/* Role-specific Progress */}
         <Card className="bg-card/95 backdrop-blur p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-foreground">Community Goal</span>
-            <span className="text-sm font-medium text-foreground">68%</span>
+            <span className="text-sm text-foreground">
+              {userRole === "COLLECTOR" ? "Daily Collection Goal" : "Community Goal"}
+            </span>
+            <span className="text-sm font-medium text-foreground">
+              {userRole === "COLLECTOR" ? "75%" : "68%"}
+            </span>
           </div>
-          <Progress value={68} className="h-2 mb-2" />
+          <Progress value={userRole === "COLLECTOR" ? 75 : 68} className="h-2 mb-2" />
           <p className="text-xs text-muted-foreground">
-            680kg of 1000kg monthly waste reduction goal
+            {userRole === "COLLECTOR" 
+              ? "15 of 20 scheduled pickups completed today"
+              : "680kg of 1000kg monthly waste reduction goal"
+            }
           </p>
         </Card>
       </div>

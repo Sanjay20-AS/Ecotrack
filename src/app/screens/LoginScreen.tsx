@@ -4,17 +4,34 @@ import { Leaf, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { userAPI } from "../services/apiService";
 
 export function LoginScreen() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login
-    navigate("/app");
+    setError("");
+    setLoading(true);
+
+    try {
+      const user = await userAPI.login(email, password);
+      // Store user and role in localStorage
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("userId", user.id.toString());
+      localStorage.setItem("userRole", user.role);
+      navigate("/app");
+    } catch (err) {
+      setError("Invalid email or password. Please try again.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -34,6 +51,12 @@ export function LoginScreen() {
 
       {/* Login Form */}
       <form onSubmit={handleLogin} className="flex flex-col gap-4 max-w-md mx-auto w-full">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="email">Email or Phone</Label>
           <div className="relative">
@@ -45,6 +68,7 @@ export function LoginScreen() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="pl-11 h-12 bg-input-background"
+              required
             />
           </div>
         </div>
@@ -60,6 +84,7 @@ export function LoginScreen() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="pl-11 pr-11 h-12 bg-input-background"
+              required
             />
             <button
               type="button"
@@ -82,8 +107,8 @@ export function LoginScreen() {
           Forgot password?
         </Link>
 
-        <Button type="submit" size="lg" className="w-full h-12 mt-4">
-          Login
+        <Button type="submit" size="lg" className="w-full h-12 mt-4" disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
         </Button>
 
         {/* Divider */}
