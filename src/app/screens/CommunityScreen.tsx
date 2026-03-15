@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { Users, Trophy, TrendingUp, Award, Plus, Search, UserPlus, LogOut, Medal, Crown, Star } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
@@ -8,6 +9,8 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
 import { communityAPI, userAPI } from "../services/apiService";
+
+type DetailTab = "members" | "leaderboard";
 
 interface Community {
   id: number;
@@ -52,6 +55,8 @@ export function CommunityScreen() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showMembersDialog, setShowMembersDialog] = useState(false);
   const [showLeaderboardDialog, setShowLeaderboardDialog] = useState(false);
+  const [detailTab, setDetailTab] = useState<DetailTab>("members");
+  const [detailsLoaded, setDetailsLoaded] = useState(false);
   const [availableCommunities, setAvailableCommunities] = useState<Community[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -129,6 +134,7 @@ export function CommunityScreen() {
     } catch (err) {
       console.error("Failed to load community members:", err);
       setError("Failed to load community members");
+      toast.error("Failed to load community members.");
     }
   };
 
@@ -139,6 +145,7 @@ export function CommunityScreen() {
     } catch (err) {
       console.error("Failed to load leaderboard:", err);
       setError("Failed to load leaderboard");
+      toast.error("Failed to load leaderboard.");
     }
   };
 
@@ -148,6 +155,15 @@ export function CommunityScreen() {
       setShowMembersDialog(true);
     }
   };
+
+  // Load both members and leaderboard for inline display
+  useEffect(() => {
+    if (userCommunity && !detailsLoaded) {
+      loadCommunityMembers(userCommunity.id);
+      loadLeaderboard(userCommunity.id);
+      setDetailsLoaded(true);
+    }
+  }, [userCommunity]);
 
   const handleShowLeaderboard = () => {
     if (userCommunity) {
@@ -172,6 +188,7 @@ export function CommunityScreen() {
     } catch (err) {
       console.error("Failed to load communities:", err);
       setError("Failed to load communities");
+      toast.error("Failed to load communities.");
     }
   };
 
@@ -187,6 +204,7 @@ export function CommunityScreen() {
     } catch (err) {
       console.error("Failed to search communities:", err);
       setError("Failed to search communities");
+      toast.error("Failed to search communities.");
     }
   };
 
@@ -228,6 +246,7 @@ export function CommunityScreen() {
       await loadCommunityStats(newCommunity.id);
       setShowCreateDialog(false);
       setSuccess("Community created successfully!");
+      toast.success("Community created successfully!");
       
       // Reset form
       setCreateFormData({
@@ -241,11 +260,13 @@ export function CommunityScreen() {
       // Handle specific error for user already in community
       if (err.message?.includes("already in a community")) {
         setError("You're already in a community! Please leave your current community before creating a new one.");
+        toast.error("You're already in a community!");
         setShowCreateDialog(false);
         // Refresh user data to update UI
         await loadUserCommunity();
       } else {
         setError(err.message || "Failed to create community");
+        toast.error(err.message || "Failed to create community.");
       }
     }
   };
@@ -272,17 +293,20 @@ export function CommunityScreen() {
       await loadCommunityStats(response.community.id);
       setShowJoinDialog(false);
       setSuccess("Successfully joined community!");
+      toast.success("Successfully joined community!");
     } catch (err: any) {
       console.error("Failed to join community:", err);
       
       // Handle specific error for user already in community
       if (err.message?.includes("already in a community")) {
         setError("You're already in a community! Please leave your current community before joining a new one.");
+        toast.error("You're already in a community!");
         setShowJoinDialog(false);
         // Refresh user data to update UI
         await loadUserCommunity();
       } else {
         setError(err.message || "Failed to join community");
+        toast.error(err.message || "Failed to join community.");
       }
     }
   };
@@ -305,9 +329,11 @@ export function CommunityScreen() {
       setUserCommunity(null);
       setCommunityStats(null);
       setSuccess("Successfully left community!");
+      toast.success("Successfully left community!");
     } catch (err: any) {
       console.error("Failed to leave community:", err);
       setError(err.message || "Failed to leave community");
+      toast.error(err.message || "Failed to leave community.");
     }
   };
 
@@ -554,60 +580,47 @@ export function CommunityScreen() {
           </div>
         </div>
 
-        {/* Member Details & Leaderboard */}
+        {/* Community Details – Toggle Members / Leaderboard */}
         <div>
           <h2 className="text-lg font-semibold mb-4">Community Details</h2>
-          <div className="grid grid-cols-1 gap-3">
-            <Card 
-              className="p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-              onClick={handleShowMembers}
+
+          {/* Toggle Buttons */}
+          <div className="flex rounded-xl bg-muted p-1 mb-4">
+            <button
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                detailTab === "members"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setDetailTab("members")}
             >
-              <div className="flex items-center justify-center gap-3">
-                <UserPlus className="h-6 w-6 text-blue-500" />
-                <div className="text-left">
-                  <p className="font-semibold">View Members</p>
-                  <p className="text-xs text-muted-foreground">See all community members</p>
-                </div>
-              </div>
-            </Card>
-            
-            <Card 
-              className="p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-              onClick={handleShowLeaderboard}
+              <Users className="h-4 w-4" />
+              Members
+              <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                {communityMembers.length}
+              </span>
+            </button>
+            <button
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                detailTab === "leaderboard"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setDetailTab("leaderboard")}
             >
-              <div className="flex items-center justify-center gap-3">
-                <Trophy className="h-6 w-6 text-yellow-500" />
-                <div className="text-left">
-                  <p className="font-semibold">Leaderboard</p>
-                  <p className="text-xs text-muted-foreground">Top waste contributors</p>
-                </div>
-              </div>
-            </Card>
+              <Trophy className="h-4 w-4" />
+              Leaderboard
+            </button>
           </div>
-        </div>
 
-        {/* Engagement Message */}
-        <Card className="p-6 text-center">
-          <Trophy className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Keep Growing!</h3>
-          <p className="text-sm text-muted-foreground">
-            Your community is making a real impact. Keep logging waste and inspiring others!
-          </p>
-        </Card>
-
-        {/* Members Dialog */}
-        <Dialog open={showMembersDialog} onOpenChange={setShowMembersDialog}>
-          <DialogContent className="mx-4 max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Community Members</DialogTitle>
-              <DialogDescription>
-                View all members of {userCommunity?.name}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+          {/* Members Panel */}
+          {detailTab === "members" && (
+            <div className="space-y-3">
               {communityMembers.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">Loading members...</p>
+                <Card className="p-6 text-center text-muted-foreground">
+                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Loading members...</p>
+                </Card>
               ) : (
                 communityMembers.map((member) => (
                   <Card key={member.id} className="p-4">
@@ -634,25 +647,19 @@ export function CommunityScreen() {
                 ))
               )}
             </div>
-          </DialogContent>
-        </Dialog>
+          )}
 
-        {/* Leaderboard Dialog */}
-        <Dialog open={showLeaderboardDialog} onOpenChange={setShowLeaderboardDialog}>
-          <DialogContent className="mx-4 max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Community Leaderboard</DialogTitle>
-              <DialogDescription>
-                Top waste contributors in {userCommunity?.name}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+          {/* Leaderboard Panel */}
+          {detailTab === "leaderboard" && (
+            <div className="space-y-3">
               {leaderboard.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">Loading leaderboard...</p>
+                <Card className="p-6 text-center text-muted-foreground">
+                  <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Loading leaderboard...</p>
+                </Card>
               ) : (
                 leaderboard.map((entry) => (
-                  <Card key={entry.id} className={`p-4 ${entry.rank <= 3 ? 'border-yellow-200 bg-yellow-50' : ''}`}>
+                  <Card key={entry.id} className={`p-4 ${entry.rank <= 3 ? "border-yellow-200 bg-yellow-50" : ""}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
@@ -677,8 +684,17 @@ export function CommunityScreen() {
                 ))
               )}
             </div>
-          </DialogContent>
-        </Dialog>
+          )}
+        </div>
+
+        {/* Engagement Message */}
+        <Card className="p-6 text-center">
+          <Trophy className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Keep Growing!</h3>
+          <p className="text-sm text-muted-foreground">
+            Your community is making a real impact. Keep logging waste and inspiring others!
+          </p>
+        </Card>
       </div>
     </div>
   );

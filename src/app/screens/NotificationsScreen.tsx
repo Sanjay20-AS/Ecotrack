@@ -1,64 +1,85 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Bell, Check, Trash2 } from "lucide-react";
+import { ArrowLeft, Bell, Check, Trash2, Loader2 } from "lucide-react";
 import { Link } from "react-router";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { notificationAPI } from "../services/apiService";
+import toast from "react-hot-toast";
+
+interface NotificationItem {
+  id: number;
+  title: string;
+  description: string;
+  type: string;
+  icon: string;
+  read: boolean;
+  createdAt: string;
+}
+
+function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days !== 1 ? "s" : ""} ago`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks} week${weeks !== 1 ? "s" : ""} ago`;
+}
 
 export function NotificationsScreen() {
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "Waste Pickup Scheduled",
-      description: "Your plastic waste pickup is scheduled for tomorrow at 10:00 AM",
-      type: "pickup",
-      time: "2 hours ago",
-      read: false,
-      icon: "🚚",
-    },
-    {
-      id: 2,
-      title: "Achievement Unlocked!",
-      description: "You've reached 50kg of waste recycled. Eco Warrior badge earned!",
-      type: "achievement",
-      time: "1 day ago",
-      read: false,
-      icon: "🏆",
-    },
-    {
-      id: 3,
-      title: "New Community Event",
-      description: "Beach cleanup event in your area. Join us this weekend!",
-      type: "community",
-      time: "3 days ago",
-      read: true,
-      icon: "🌍",
-    },
-    {
-      id: 4,
-      title: "Facility Update",
-      description: "The e-waste facility near you now accepts more device types",
-      type: "facility",
-      time: "1 week ago",
-      read: true,
-      icon: "🏭",
-    },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const userId = Number(localStorage.getItem("userId"));
 
-  const handleMarkAsRead = (id: number) => {
-    setNotifications(
-      notifications.map((notif) =>
-        notif.id === id ? { ...notif, read: true } : notif
-      )
-    );
+  const fetchNotifications = async () => {
+    if (!userId) return;
+    try {
+      const data = await notificationAPI.getUserNotifications(userId);
+      setNotifications(data);
+    } catch {
+      // errors handled by apiService
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id: number) => {
-    setNotifications(notifications.filter((notif) => notif.id !== id));
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const handleMarkAsRead = async (id: number) => {
+    try {
+      await notificationAPI.markAsRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch {
+      toast.error("Failed to mark as read");
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map((notif) => ({ ...notif, read: true })));
+  const handleDelete = async (id: number) => {
+    try {
+      await notificationAPI.deleteNotification(id);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      toast.success("Notification deleted");
+    } catch {
+      toast.error("Failed to delete notification");
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationAPI.markAllAsRead(userId);
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      toast.success("All marked as read");
+    } catch {
+      toast.error("Failed to mark all as read");
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -92,7 +113,12 @@ export function NotificationsScreen() {
       </div>
 
       <div className="px-6 py-6 space-y-3">
-        {notifications.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <Loader2 className="h-10 w-10 mx-auto text-primary animate-spin mb-4" />
+            <p className="text-muted-foreground">Loading notifications...</p>
+          </div>
+        ) : notifications.length === 0 ? (
           <div className="text-center py-12">
             <Bell className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-50" />
             <p className="text-muted-foreground text-lg">No notifications yet</p>
@@ -117,7 +143,7 @@ export function NotificationsScreen() {
                         {notification.description}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
-                        {notification.time}
+                        {timeAgo(notification.createdAt)}
                       </p>
                     </div>
                     {!notification.read && (

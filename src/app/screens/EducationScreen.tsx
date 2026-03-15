@@ -1,72 +1,217 @@
-import { BookOpen, Video, Bookmark } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { BookOpen, Video, Eye, RefreshCw, AlertCircle, ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { educationAPI } from "../services/apiService";
+
+const CATEGORIES = ["ALL", "WASTE_MANAGEMENT", "RECYCLING", "COMPOSTING", "E-WASTE", "TIPS"];
+const CATEGORY_LABELS: Record<string, string> = {
+  ALL: "All Topics", WASTE_MANAGEMENT: "Waste Management", RECYCLING: "Recycling",
+  COMPOSTING: "Composting", "E-WASTE": "E-Waste", TIPS: "Eco Tips",
+};
+const CATEGORY_ICONS: Record<string, string> = {
+  ALL: "📚", WASTE_MANAGEMENT: "♻️", RECYCLING: "🔄", COMPOSTING: "🌱", "E-WASTE": "💻", TIPS: "💡",
+};
+const DIFFICULTY_COLORS: Record<string, string> = {
+  BEGINNER: "bg-green-100 text-green-700",
+  INTERMEDIATE: "bg-yellow-100 text-yellow-700",
+  ADVANCED: "bg-red-100 text-red-700",
+};
+
+interface Article {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  thumbnailUrl?: string;
+  videoUrl?: string;
+  viewsCount: number;
+  difficulty?: string;
+  createdAt: string;
+}
 
 export function EducationScreen() {
-  const featured = [
-    { title: "Complete Guide to E-waste Recycling", type: "Article", duration: "5 min read" },
-    { title: "Zero Waste Living Tips", type: "Video", duration: "12 min" },
-    { title: "Composting 101", type: "Article", duration: "8 min read" },
-  ];
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [featured, setFeatured] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeCategory, setActiveCategory] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const categories = ["E-waste", "Food Waste", "Composting", "Recycling", "Sustainability"];
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [all, feat] = await Promise.all([
+        educationAPI.getAll(),
+        educationAPI.getFeatured(),
+      ]);
+      setArticles(all);
+      setFeatured(feat);
+    } catch {
+      setError("Failed to load educational content.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleExpand = async (article: Article) => {
+    if (expandedId === article.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(article.id);
+    // Increment view count
+    try { await educationAPI.getById(article.id); } catch { /* ignore */ }
+  };
+
+  const filtered = articles.filter((a) => {
+    const matchCat = activeCategory === "ALL" || a.category === activeCategory;
+    const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const FeaturedCard = ({ article }: { article: Article }) => (
+    <Card className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleExpand(article)}>
+      <div className="flex gap-4 p-4">
+        <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {article.thumbnailUrl ? (
+            <img src={article.thumbnailUrl} alt={article.title} className="w-full h-full object-cover" />
+          ) : article.videoUrl ? (
+            <Video className="h-7 w-7 text-muted-foreground" />
+          ) : (
+            <BookOpen className="h-7 w-7 text-muted-foreground" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex gap-2 mb-1 flex-wrap">
+            {article.videoUrl && <Badge variant="secondary" className="text-xs">Video</Badge>}
+            {article.difficulty && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${DIFFICULTY_COLORS[article.difficulty] ?? ""}`}>
+                {article.difficulty.charAt(0) + article.difficulty.slice(1).toLowerCase()}
+              </span>
+            )}
+          </div>
+          <h3 className="font-semibold text-sm leading-snug line-clamp-2 mb-1">{article.title}</h3>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{article.viewsCount}</span>
+            <span>{CATEGORY_LABELS[article.category] ?? article.category}</span>
+          </div>
+        </div>
+        <div className="self-center text-muted-foreground">
+          {expandedId === article.id ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+        </div>
+      </div>
+      {expandedId === article.id && (
+        <div className="px-4 pb-4 border-t border-border">
+          {article.thumbnailUrl && (
+            <div className="my-3 rounded-lg overflow-hidden aspect-video bg-muted">
+              <img src={article.thumbnailUrl} alt={article.title} className="w-full h-full object-cover" />
+            </div>
+          )}
+          {article.videoUrl && (
+            <div className="my-3">
+              <a href={article.videoUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" className="w-full">
+                  <Video className="mr-2 h-4 w-4" />Watch Video
+                </Button>
+              </a>
+            </div>
+          )}
+          <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line mt-3">
+            {article.content}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-background pb-6">
+      {/* Header */}
       <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
         <h1 className="text-2xl font-bold">Education & Tips</h1>
         <p className="text-sm opacity-90 mt-1">Learn about sustainable practices</p>
       </div>
 
       <div className="px-6 py-6 space-y-6">
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Featured Content</h2>
-          <div className="space-y-3">
-            {featured.map((item, idx) => (
-              <Card key={idx} className="overflow-hidden">
-                <div className="flex gap-4 p-4">
-                  <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-                    {item.type === "Video" ? (
-                      <Video className="h-8 w-8 text-muted-foreground" />
-                    ) : (
-                      <BookOpen className="h-8 w-8 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <Badge variant="secondary" className="mb-2">{item.type}</Badge>
-                    <h3 className="font-semibold mb-1">{item.title}</h3>
-                    <p className="text-sm text-muted-foreground">{item.duration}</p>
-                  </div>
-                  <button className="self-start text-muted-foreground hover:text-foreground">
-                    <Bookmark className="h-5 w-5" />
-                  </button>
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            placeholder="Search articles..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-11 h-11"
+          />
+          {search && (
+            <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setSearch("")}>
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Category Pills */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {CATEGORIES.map((cat) => (
+            <Button
+              key={cat}
+              size="sm"
+              variant={activeCategory === cat ? "default" : "outline"}
+              className="whitespace-nowrap flex-shrink-0"
+              onClick={() => setActiveCategory(cat)}
+            >
+              {CATEGORY_ICONS[cat]} {CATEGORY_LABELS[cat]}
+            </Button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading content...</div>
+        ) : error ? (
+          <Card className="p-8 text-center">
+            <AlertCircle className="h-10 w-10 text-destructive mx-auto mb-3" />
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button variant="outline" onClick={loadData}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button>
+          </Card>
+        ) : (
+          <>
+            {/* Featured */}
+            {!search && activeCategory === "ALL" && featured.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-3">Featured</h2>
+                <div className="space-y-3">
+                  {featured.map((a) => <FeaturedCard key={a.id} article={a} />)}
                 </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+              </div>
+            )}
 
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Browse by Topic</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {categories.map((category, idx) => (
-              <Card key={idx} className="p-4 text-center hover:bg-muted/50 cursor-pointer transition-colors">
-                <div className="text-3xl mb-2">📚</div>
-                <p className="font-medium text-sm">{category}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        <Card className="bg-gradient-to-br from-primary/10 to-accent/10 p-6">
-          <h3 className="font-bold mb-2">Your Progress</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            You've completed 8 out of 20 educational modules
-          </p>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary w-2/5"></div>
-          </div>
-        </Card>
+            {/* All / Filtered */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold">
+                  {search ? `Results for "${search}"` : activeCategory === "ALL" ? "All Articles" : CATEGORY_LABELS[activeCategory]}
+                </h2>
+                <span className="text-sm text-muted-foreground">{filtered.length} articles</span>
+              </div>
+              {filtered.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">No articles found</p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {filtered.map((a) => <FeaturedCard key={a.id} article={a} />)}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

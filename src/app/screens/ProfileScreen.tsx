@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
-import { User, Award, TrendingUp, Settings, Bell, HelpCircle, LogOut, ChevronRight, Save, X, Trash2 } from "lucide-react";
+import { User, Award, TrendingUp, Settings, Bell, HelpCircle, LogOut, ChevronRight, Save, X, Trash2, Trophy } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
@@ -8,6 +8,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import toast from "react-hot-toast";
 import { userAPI, wasteAPI } from "../services/apiService";
 
 export function ProfileScreen() {
@@ -78,11 +79,13 @@ export function ProfileScreen() {
       localStorage.setItem("user", JSON.stringify(updatedUser));
       setUser(updatedUser);
       setSuccess("Profile updated successfully!");
+      toast.success("Profile updated!");
       setIsEditing(false);
 
       setTimeout(() => setSuccess(""), 2000);
     } catch (err) {
       setError("Failed to update profile. Please try again.");
+      toast.error("Failed to update profile.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -106,23 +109,14 @@ export function ProfileScreen() {
 
       await userAPI.deleteUser(parseInt(userId));
       
-      // Clear all local storage and any cached form data
-      localStorage.removeItem("user");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("userRole");
-      localStorage.removeItem("token");
+      // Wipe ALL localStorage to prevent stale data from showing
+      localStorage.clear();
       
-      // Clear any stored login form data
-      localStorage.removeItem("loginEmail");
-      localStorage.removeItem("loginPhone");
-      
-      // Close dialog and navigate to home with success message
-      setShowDeleteConfirm(false);
-      navigate("/", { 
-        state: { message: "Account deleted successfully" }
-      });
+      // Force hard redirect to login (avoids back-button showing old screens)
+      window.location.href = "/";
     } catch (err) {
       setError("Failed to delete account. Please try again.");
+      toast.error("Failed to delete account.");
       console.error(err);
       setLoading(false);
     }
@@ -141,8 +135,8 @@ export function ProfileScreen() {
   ];
 
   const menuItems = [
+    { icon: Trophy, label: "Rewards", path: "/app/rewards" },
     { icon: Bell, label: "Notifications", path: "/app/profile/notifications" },
-    { icon: TrendingUp, label: "Analytics", path: "/app/analytics" },
     { icon: Settings, label: "Settings", path: "/app/profile/settings" },
     { icon: HelpCircle, label: "Help & Support", path: "/app/help" },
   ];
@@ -315,9 +309,6 @@ export function ProfileScreen() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Achievement Badges</h2>
-            <Link to="/app/profile/achievements" className="text-sm text-primary hover:underline">
-              View all
-            </Link>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {badges.map((badge, idx) => (

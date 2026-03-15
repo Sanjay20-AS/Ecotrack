@@ -5,6 +5,7 @@ import com.ecotrack.backend.model.User;
 import com.ecotrack.backend.repository.CommunityRepository;
 import com.ecotrack.backend.repository.UserRepository;
 import com.ecotrack.backend.repository.WasteRepository;
+import com.ecotrack.backend.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/communities")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://127.0.0.1:5173"})
 public class CommunityController {
 
     @Autowired
@@ -28,6 +28,9 @@ public class CommunityController {
     
     @Autowired
     private WasteRepository wasteRepository;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @GetMapping
     public List<Community> getAllCommunities() {
@@ -117,6 +120,7 @@ public class CommunityController {
             community.setUpdatedAt(LocalDateTime.now());
             communityRepository.save(community);
             
+            notificationService.notifyCommunityJoined(user, community.getName());
             return ResponseEntity.ok(Map.of("message", "Successfully joined community", "community", community));
             
         } catch (Exception e) {

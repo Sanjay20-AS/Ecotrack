@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────────────────────────
+# EcoTrack Application Configuration
+# Copy this file to application.properties and fill in your values
+# ─────────────────────────────────────────────────────────────
+
+# ─── Database Configuration ─────────────────────────────────
+# Replace with your PostgreSQL database URL
+spring.datasource.url=jdbc:postgresql://localhost:5432/ecotrack_db
+# Database username
+spring.datasource.username=postgres
+# Database password (KEEP SECURE - never commit actual password)
+spring.datasource.password=YOUR_DB_PASSWORD
+
+# ─── JPA/Hibernate Configuration ────────────────────────────
+# Auto-update database schema
+spring.jpa.hibernate.ddl-auto=update
+# Show SQL queries in logs (set to false in production)
+spring.jpa.show-sql=true
+# Use PostgreSQL dialect
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+
+# ─── Server Configuration ───────────────────────────────────
+# Server port
+server.port=8080
+# Allow large file uploads (for waste images)
+server.tomcat.max-http-form-post-size=-1
+spring.servlet.multipart.max-file-size=20MB
+spring.servlet.multipart.max-request-size=20MB
+
+# ─── JWT Configuration ──────────────────────────────────────
+# JWT signing secret (KEEP SECURE - use a long, random string)
+# Generate with: openssl rand -base64 32
+jwt.secret=YOUR_JWT_SECRET_KEY_HERE_MUST_BE_LONG_ENOUGH_FOR_HS256_ALGORITHM
+# JWT token expiration time in milliseconds (86400000 = 24 hours)
+jwt.expiration=86400000
+
+# ─── Groq API Configuration ─────────────────────────────────
+# Groq API key for waste classification (get from https://console.groq.com)
+groq.api.key=YOUR_GROQ_API_KEY_HERE
+
+# ─── Production Configuration (Optional) ─────────────────────
+# Uncomment and configure for production deployment
+# spring.jpa.show-sql=false
+# server.error.include-message=never
+# server.error.include-stacktrace=never

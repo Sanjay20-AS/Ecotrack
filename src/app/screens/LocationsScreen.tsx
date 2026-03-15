@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { MapPin, Navigation, Phone, Clock, Filter, Map as MapIcon, Locate, Route, Zap, Leaf } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -21,6 +22,7 @@ interface Facility {
 }
 
 export function LocationsScreen() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
   const [locations, setLocations] = useState<Facility[]>([]);
   const [filteredLocations, setFilteredLocations] = useState<Facility[]>([]);
@@ -29,6 +31,19 @@ export function LocationsScreen() {
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [selectedLocation, setSelectedLocation] = useState<Facility | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const RADIUS_KM = 50; // show facilities within 50 km
+
+  const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
 
   // Fix Leaflet default markers
   useEffect(() => {
@@ -42,11 +57,12 @@ export function LocationsScreen() {
 
   useEffect(() => {
     fetchFacilities();
+    getCurrentLocation(); // auto-detect on mount
   }, []);
 
   useEffect(() => {
     filterLocations();
-  }, [locations, filter, searchQuery]);
+  }, [locations, filter, searchQuery, userLocation]);
 
   const fetchFacilities = async () => {
     setLoading(true);
@@ -63,20 +79,28 @@ export function LocationsScreen() {
   };
 
   const filterLocations = () => {
-    let filtered = locations;
+    const origin = userLocation ?? { lat: 11.0168, lng: 76.9558 };
+    let filtered = locations
+      .map((loc) => ({
+        ...loc,
+        distanceKm: haversineKm(origin.lat, origin.lng, loc.latitude, loc.longitude),
+      }))
+      .filter((loc) => loc.distanceKm <= RADIUS_KM);
 
     if (filter !== "all") {
-      filtered = filtered.filter((loc: Facility) =>
+      filtered = filtered.filter((loc) =>
         loc.type.toLowerCase().includes(filter.toLowerCase())
       );
     }
 
     if (searchQuery) {
-      filtered = filtered.filter((loc: Facility) =>
+      filtered = filtered.filter((loc) =>
         loc.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
+    // Sort nearest first
+    filtered.sort((a, b) => a.distanceKm - b.distanceKm);
     setFilteredLocations(filtered);
   };
 
@@ -89,26 +113,31 @@ export function LocationsScreen() {
             lng: position.coords.longitude
           });
         },
-        (error) => {
-          console.error('Error getting location:', error);
+        () => {
+          // Fallback to Coimbatore if denied
+          setUserLocation({ lat: 11.0168, lng: 76.9558 });
         }
       );
+    } else {
+      setUserLocation({ lat: 11.0168, lng: 76.9558 });
     }
   };
 
   const getLocationIcon = (type: string) => {
-    const iconHtml = {
-      'EWASTE': '<div style="background: #3b82f6; color: white; border-radius: 50%; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 2px solid white;">⚡</div>',
-      'COMPOST': '<div style="background: #10b981; color: white; border-radius: 50%; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 2px solid white;">🍃</div>',
-      'FOOD': '<div style="background: #f97316; color: white; border-radius: 50%; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 2px solid white;">📍</div>',
+    const iconHtml: Record<string, string> = {
+      'EWASTE':    '<div style="background: #2563eb; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 3px 8px rgba(37,99,235,0.5); border: 3px solid white;">⚡</div>',
+      'COMPOST':   '<div style="background: #059669; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 3px 8px rgba(5,150,105,0.5); border: 3px solid white;">🍃</div>',
+      'FOOD':      '<div style="background: #ea580c; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 3px 8px rgba(234,88,12,0.5); border: 3px solid white;">🍽️</div>',
+      'RECYCLER':  '<div style="background: #7c3aed; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 3px 8px rgba(124,58,237,0.5); border: 3px solid white;">♻️</div>',
+      'NGO':       '<div style="background: #db2777; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 3px 8px rgba(219,39,119,0.5); border: 3px solid white;">🤝</div>',
+      'LANDFILL':  '<div style="background: #6b7280; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 3px 8px rgba(107,114,128,0.5); border: 3px solid white;">🗑️</div>',
     };
-    
     return L.divIcon({
-      html: iconHtml[type?.toUpperCase() as keyof typeof iconHtml] || iconHtml.FOOD,
+      html: iconHtml[type?.toUpperCase()] || iconHtml['FOOD'],
       className: 'custom-marker-icon',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
-      popupAnchor: [0, -16]
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+      popupAnchor: [0, -20]
     });
   };
 
@@ -139,6 +168,13 @@ export function LocationsScreen() {
       </div>
 
       <div className="px-6 py-6 space-y-4">
+        {/* Header info */}
+        <div className="text-sm text-muted-foreground flex items-center gap-1">
+          <MapPin className="h-3.5 w-3.5" />
+          {userLocation
+            ? `Showing facilities within ${RADIUS_KM} km of your location`
+            : "Detecting your location..."}
+        </div>
         {/* Search and Filter */}
         <div className="space-y-3">
           <Input
@@ -178,7 +214,31 @@ export function LocationsScreen() {
               onClick={() => setFilter("FOOD")}
               className="whitespace-nowrap"
             >
-              Food/Recycler
+              Food
+            </Button>
+            <Button
+              size="sm"
+              variant={filter === "RECYCLER" ? "default" : "outline"}
+              onClick={() => setFilter("RECYCLER")}
+              className="whitespace-nowrap"
+            >
+              Recycler
+            </Button>
+            <Button
+              size="sm"
+              variant={filter === "NGO" ? "default" : "outline"}
+              onClick={() => setFilter("NGO")}
+              className="whitespace-nowrap"
+            >
+              NGO
+            </Button>
+            <Button
+              size="sm"
+              variant={filter === "LANDFILL" ? "default" : "outline"}
+              onClick={() => setFilter("LANDFILL")}
+              className="whitespace-nowrap"
+            >
+              Landfill
             </Button>
           </div>
         </div>
@@ -204,19 +264,14 @@ export function LocationsScreen() {
           </Button>
         </div>
 
-        {/* Debug Info */}
-        <div className="text-xs text-gray-500 text-center">
-          View Mode: {viewMode} | Facilities: {filteredLocations.length} | Total: {locations.length}
-        </div>
-
         {/* Map View */}
         {viewMode === "map" && (
           <div className="space-y-4">
             {/* Interactive Map */}
             <div className="h-96 border-4 border-primary shadow-xl rounded-lg overflow-hidden">
               <MapContainer
-                center={[12.9716, 77.5946]} // Bangalore, India
-                zoom={11}
+                center={userLocation ? [userLocation.lat, userLocation.lng] : [11.0168, 76.9558]}
+                zoom={12}
                 style={{ height: '100%', width: '100%' }}
                 zoomControl={true}
               >
@@ -301,8 +356,20 @@ export function LocationsScreen() {
                     <span>Compost Sites</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="bg-orange-500 w-4 h-4 rounded-full flex items-center justify-center text-white text-xs">📍</div>
-                    <span>Food/Recycler</span>
+                    <div className="bg-orange-500 w-4 h-4 rounded-full flex items-center justify-center text-white text-xs">🍽️</div>
+                    <span>Food Recovery</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="bg-purple-600 w-4 h-4 rounded-full flex items-center justify-center text-white text-xs">♻️</div>
+                    <span>Recycler</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="bg-pink-600 w-4 h-4 rounded-full flex items-center justify-center text-white text-xs">🤝</div>
+                    <span>NGO Hub</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="bg-gray-500 w-4 h-4 rounded-full flex items-center justify-center text-white text-xs">🗑️</div>
+                    <span>Landfill Transfer</span>
                   </div>
                 </div>
               </div>
@@ -311,10 +378,13 @@ export function LocationsScreen() {
               <div className="bg-white/90 rounded-lg p-3 shadow-lg border">
                 <div className="text-sm font-semibold mb-2">📊 Statistics</div>
                 <div className="text-xs space-y-1">
-                  <div>Total Facilities: <span className="font-semibold">{filteredLocations.length}</span></div>
+                  <div>Total: <span className="font-semibold">{filteredLocations.length}</span></div>
                   <div>E-waste: <span className="font-semibold">{filteredLocations.filter(f => f.type === 'EWASTE').length}</span></div>
                   <div>Compost: <span className="font-semibold">{filteredLocations.filter(f => f.type === 'COMPOST').length}</span></div>
                   <div>Food: <span className="font-semibold">{filteredLocations.filter(f => f.type === 'FOOD').length}</span></div>
+                  <div>Recycler: <span className="font-semibold">{filteredLocations.filter(f => f.type === 'RECYCLER').length}</span></div>
+                  <div>NGO: <span className="font-semibold">{filteredLocations.filter(f => f.type === 'NGO').length}</span></div>
+                  <div>Landfill: <span className="font-semibold">{filteredLocations.filter(f => f.type === 'LANDFILL').length}</span></div>
                 </div>
               </div>
             </div>
@@ -334,7 +404,7 @@ export function LocationsScreen() {
                 size="sm" 
                 variant="outline" 
                 className="flex-1"
-                onClick={() => window.open(`https://www.google.com/maps/search/waste+disposal+facility/@12.9716,77.5946,12z`, '_blank')}
+                onClick={() => window.open(`https://www.google.com/maps/search/waste+disposal+facility/@11.0168,76.9558,12z`, '_blank')}
               >
                 <Route className="h-3 w-3 mr-1" />
                 Directions
@@ -342,7 +412,7 @@ export function LocationsScreen() {
             </div>
 
             {/* Request Pickup for Map View */}
-            <Button size="lg" className="w-full h-12">
+            <Button size="lg" className="w-full h-12" onClick={() => navigate("/app/track", { state: { pickupRequested: true } })}>
               <Navigation className="mr-2 h-5 w-5" />
               Request Pickup Service
             </Button>
@@ -352,7 +422,7 @@ export function LocationsScreen() {
         {/* Facilities List */}
         {viewMode === "list" && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold mb-4">Facilities Near You</h2>
+            <h2 className="text-lg font-semibold mb-4">Facilities Near You ({filteredLocations.length})</h2>
             {loading ? (
               <div className="text-center text-muted-foreground">Loading facilities...</div>
             ) : filteredLocations.length === 0 ? (
@@ -361,13 +431,21 @@ export function LocationsScreen() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {filteredLocations.map((location: Facility) => (
+                {filteredLocations.map((location: any) => (
                   <Card key={location.id} className="p-4">
                     <div className="space-y-2">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="font-semibold">{location.name}</h3>
-                          <Badge className="mt-1">{location.type}</Badge>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge>{location.type}</Badge>
+                            <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                              <MapPin className="h-3 w-3" />
+                              {location.distanceKm < 1
+                                ? `${Math.round(location.distanceKm * 1000)} m`
+                                : `${location.distanceKm.toFixed(1)} km`} away
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -392,7 +470,17 @@ export function LocationsScreen() {
                         )}
                       </div>
 
-                      <Button size="sm" className="w-full mt-2">
+                      <Button
+                        size="sm"
+                        className="w-full mt-2"
+                        onClick={() =>
+                          window.open(
+                            `https://www.google.com/maps/dir/?api=1&destination=${location.latitude},${location.longitude}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        <Navigation className="h-3.5 w-3.5 mr-1.5" />
                         Get Directions
                       </Button>
                     </div>
@@ -402,7 +490,7 @@ export function LocationsScreen() {
             )}
 
             {/* Request Pickup for List View */}
-            <Button size="lg" className="w-full h-12">
+            <Button size="lg" className="w-full h-12" onClick={() => navigate("/app/track", { state: { pickupRequested: true } })}>
               <Navigation className="mr-2 h-5 w-5" />
               Request Pickup Service
             </Button>

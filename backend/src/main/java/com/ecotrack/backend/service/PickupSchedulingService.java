@@ -37,7 +37,37 @@ public class PickupSchedulingService {
             }
         }
 
-        return "PICKUP TYPE NOT SUPPORTED";
+        // PLASTIC logic
+        if (wasteType.equalsIgnoreCase("PLASTIC")) {
+            if (quantity > 20) {
+                return "BULK PLASTIC PICKUP (WITHIN 2 DAYS)";
+            } else if (daysSinceGenerated > 7) {
+                return "OVERDUE PICKUP (WITHIN 24 HOURS)";
+            } else {
+                return "STANDARD PICKUP (WITHIN 3 DAYS)";
+            }
+        }
+
+        // PAPER logic
+        if (wasteType.equalsIgnoreCase("PAPER")) {
+            if (quantity > 15) {
+                return "BULK PAPER PICKUP (WITHIN 2 DAYS)";
+            } else {
+                return "SCHEDULED PICKUP (WITHIN 5 DAYS)";
+            }
+        }
+
+        // ORGANIC logic
+        if (wasteType.equalsIgnoreCase("ORGANIC")) {
+            if (daysSinceGenerated <= 2) {
+                return "PRIORITY PICKUP (WITHIN 24 HOURS)";
+            } else {
+                return "STANDARD PICKUP (WITHIN 48 HOURS)";
+            }
+        }
+
+        // Default fallback for any other type
+        return "SCHEDULED PICKUP (WITHIN 3 DAYS)";
     }
 }
 

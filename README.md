@@ -28,8 +28,12 @@ EcoTrack/
 
 https://www.figma.com/design/SnocrQ6WhSeN5IoOKe8KBV/Ecotrack-Mobile-App-UI
 
-cd backend 
-./mvnw spring-boot:run (or)
+cd backend; ./mvnw spring-boot:run (or)
 ./mvnw.cmd spring-boot:run
 
-cd backend; ./mvnw.cmd spring-boot:run
+
+
+
+
+
+

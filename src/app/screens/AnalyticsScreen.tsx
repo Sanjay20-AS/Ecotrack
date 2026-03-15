@@ -55,15 +55,22 @@ export function AnalyticsScreen() {
       setError("");
       
       const userId = localStorage.getItem("userId");
+      const userRole = localStorage.getItem("userRole") || "DONOR";
       if (!userId) {
         setError("User not found");
         return;
       }
 
-      // Load user analytics, trends, and global analytics
+      const uid = parseInt(userId);
+
+      // Collectors use collector-specific analytics; donors use user analytics
       const [analytics, trends, global] = await Promise.all([
-        wasteAPI.getUserAnalytics(parseInt(userId), timeRange),
-        wasteAPI.getUserTrends(parseInt(userId), timeRange),
+        userRole === "COLLECTOR"
+          ? wasteAPI.getCollectorAnalytics(uid, timeRange)
+          : wasteAPI.getUserAnalytics(uid, timeRange),
+        userRole === "COLLECTOR"
+          ? wasteAPI.getCollectorTrends(uid, timeRange)
+          : wasteAPI.getUserTrends(uid, timeRange),
         wasteAPI.getGlobalAnalytics()
       ]);
 

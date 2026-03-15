@@ -39,6 +39,25 @@ public class Waste {
     @Column
     private String status; // PENDING, IN_PROGRESS, COLLECTED
 
+    @ManyToOne
+    @JoinColumn(name = "collected_by_id")
+    private User collectedBy;
+
+    @Column(name = "collector_notes")
+    private String collectorNotes;
+
+    @Column(name = "claimed_at")
+    private LocalDateTime claimedAt;
+
+    @Column(name = "collection_photo_url")
+    private String collectionPhotoUrl;
+
+    @Column(name = "collector_latitude")
+    private Double collectorLatitude;
+
+    @Column(name = "collector_longitude")
+    private Double collectorLongitude;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -150,5 +169,53 @@ public class Waste {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public User getCollectedBy() {
+        return collectedBy;
+    }
+
+    public void setCollectedBy(User collectedBy) {
+        this.collectedBy = collectedBy;
+    }
+
+    public String getCollectorNotes() {
+        return collectorNotes;
+    }
+
+    public void setCollectorNotes(String collectorNotes) {
+        this.collectorNotes = collectorNotes;
+    }
+
+    public LocalDateTime getClaimedAt() {
+        return claimedAt;
+    }
+
+    public void setClaimedAt(LocalDateTime claimedAt) {
+        this.claimedAt = claimedAt;
+    }
+
+    public String getCollectionPhotoUrl() {
+        return collectionPhotoUrl;
+    }
+
+    public void setCollectionPhotoUrl(String collectionPhotoUrl) {
+        this.collectionPhotoUrl = collectionPhotoUrl;
+    }
+
+    public Double getCollectorLatitude() {
+        return collectorLatitude;
+    }
+
+    public void setCollectorLatitude(Double collectorLatitude) {
+        this.collectorLatitude = collectorLatitude;
+    }
+
+    public Double getCollectorLongitude() {
+        return collectorLongitude;
+    }
+
+    public void setCollectorLongitude(Double collectorLongitude) {
+        this.collectorLongitude = collectorLongitude;
     }
 }

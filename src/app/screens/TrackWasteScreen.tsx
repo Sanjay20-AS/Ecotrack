@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { Camera, Calendar, MapPin, Save, X, Upload, LocateFixed, Leaf, Recycle, Truck, Sparkles, SwitchCamera } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useLocation, Link } from "react-router";
+import { Camera, Calendar, MapPin, Save, X, Upload, LocateFixed, Leaf, Recycle, Truck, Sparkles, SwitchCamera, Building2, CalendarClock, Gauge, TrendingDown, TrendingUp, BarChart3, Target, Bot, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -7,23 +8,64 @@ import { Card } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Calendar as CalendarPicker } from "../components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { wasteAPI } from "../services/apiService";
+import { Progress } from "../components/ui/progress";
+import toast from "react-hot-toast";
+import { wasteAPI, wastePriorityAPI, pickupAPI, facilityAPI } from "../services/apiService";
+
+interface WasteEntry {
+  id: number;
+  type: 'E-WASTE' | 'FOOD';
+  description: string;
+  quantity: number;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COLLECTED';
+  createdAt: string;
+  locationAddress?: string;
+  imageUrl?: string;
+}
+
+interface AIClassificationResult {
+  id: number;
+  predictedCategory: string;
+  itemName: string;
+  predictedCondition: string;
+  predictedDisposal: string;
+  estimatedWeight: number;
+  confidenceScore: number;
+  notes?: string;
+}
+
+interface AnalyticsInsights {
+  priority: { priorityScore: number; priorityLevel: string } | null;
+  schedule: { pickupSchedule: string } | null;
+  facility: { name: string; type: string } | null;
+}
+
+interface FieldErrors {
+  description?: string;
+  quantity?: string;
+  locationAddress?: string;
+}
 
 export function TrackWasteScreen() {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("ewaste");
-  const [allEntries, setAllEntries] = useState([]);
-  const [recentEntries, setRecentEntries] = useState([]);
+  const [allEntries, setAllEntries] = useState<WasteEntry[]>([]);
+  const [recentEntries, setRecentEntries] = useState<WasteEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [success, setSuccess] = useState("");
+  const errorMsgRef = useRef<HTMLDivElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [submissionInsights, setSubmissionInsights] = useState<AnalyticsInsights | null>(null);
   const [logDate, setLogDate] = useState<Date | undefined>(undefined);
   const [logTime, setLogTime] = useState("09:00");
   const [showCalendar, setShowCalendar] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [formData, setFormData] = useState({
@@ -36,8 +78,26 @@ export function TrackWasteScreen() {
     contactPhone: "",
     notes: "",
     locationAddress: "",
-    locationLatitude: 12.9716,
-    locationLongitude: 77.5946,
+    locationLatitude: 11.0168,
+    locationLongitude: 76.9558,
+  });
+
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsTimeRange, setAnalyticsTimeRange] = useState<"week" | "month" | "year">("month");
+
+  // AI classification state
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<AIClassificationResult | null>(null);
+  const [aiClassificationId, setAiClassificationId] = useState<number | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [lastBase64, setLastBase64] = useState<string | null>(null);
+  const [isApplyingAiResult, setIsApplyingAiResult] = useState(false);
+
+  const getDefaultsForTab = (tab: string) => ({
+    condition: tab === "food" ? "fresh" : "working",
+    disposalMethod: tab === "food" ? "compost" : "dropoff",
   });
 
   const userId = localStorage.getItem("userId");
@@ -46,19 +106,47 @@ export function TrackWasteScreen() {
 
   useEffect(() => {
     fetchWasteEntries();
+    // Pre-check pickup if navigated from Locations screen
+    if ((location.state as any)?.pickupRequested) {
+      setFormData((prev) => ({ ...prev, pickupRequested: true }));
+    }
   }, []);
 
-  // Reset form when switching between tabs
   useEffect(() => {
-    const defaultCondition = activeTab === "food" ? "fresh" : "working";
-    const defaultDisposal = activeTab === "food" ? "compost" : "dropoff";
-    
-    setFormData(prev => ({
-      ...prev,
-      condition: defaultCondition,
-      disposalMethod: defaultDisposal,
-    }));
-  }, [activeTab]);
+    if (activeTab === "analytics") {
+      fetchAnalytics();
+    }
+  }, [activeTab, analyticsTimeRange]);
+
+  // Handle applying AI results without infinite loop
+  const [pendingTab, setPendingTab] = useState<string | null>(null);
+  useEffect(() => {
+    if (isApplyingAiResult && pendingTab) {
+      // Small delay to ensure form renders first
+      const timer = setTimeout(() => {
+        setActiveTab(pendingTab);
+        setIsApplyingAiResult(false);
+        setPendingTab(null);
+      }, 10);
+      return () => clearTimeout(timer);
+    }
+  }, [isApplyingAiResult, pendingTab]);
+
+  const fetchAnalytics = async () => {
+    if (!userId) return;
+    setAnalyticsLoading(true);
+    try {
+      const [analytics, trends] = await Promise.all([
+        wasteAPI.getUserAnalytics(parseInt(userId), analyticsTimeRange),
+        wasteAPI.getUserTrends(parseInt(userId), analyticsTimeRange),
+      ]);
+      setAnalyticsData({ analytics, trends });
+    } catch (err) {
+      console.error("Failed to load analytics:", err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -115,8 +203,7 @@ export function TrackWasteScreen() {
     try {
       if (userId) {
         const waste = await wasteAPI.getWasteByUserId(parseInt(userId));
-        // Sort by creation date (most recent first)
-        const sortedWaste = waste.sort((a: any, b: any) => 
+        const sortedWaste = waste.sort((a: any, b: any) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         setAllEntries(sortedWaste);
@@ -131,44 +218,63 @@ export function TrackWasteScreen() {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setFieldErrors({});
     setLoading(true);
 
-    try {
-      // Validation helper to show error and scroll to top
-      const showValidationError = (message: string) => {
-        setError(message);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setLoading(false);
-      };
+    const newFieldErrors: FieldErrors = {};
+    let hasErrors = false;
 
-      // Validate required fields
-      if (!formData.quantity || !formData.description) {
-        showValidationError("Please fill in all required fields.");
-        return;
+    try {
+      // Validate description
+      if (!formData.description?.trim()) {
+        newFieldErrors.description = "Description is required";
+        hasErrors = true;
+      }
+
+      // Validate quantity
+      const quantity = parseFloat(formData.quantity);
+      if (!formData.quantity?.trim()) {
+        newFieldErrors.quantity = "Quantity is required";
+        hasErrors = true;
+      } else if (isNaN(quantity) || quantity <= 0 || quantity > 1000) {
+        newFieldErrors.quantity = "Enter a valid quantity (0.1 - 1000 kg)";
+        hasErrors = true;
       }
 
       // Validate address format
-      if (!formData.locationAddress?.trim() || !validateAddress(formData.locationAddress)) {
-        showValidationError("Please enter a complete address with door number, street name, area/city (e.g., '123 Main Street, Downtown, City, 123456').");
+      if (!formData.locationAddress?.trim()) {
+        newFieldErrors.locationAddress = "Location address is required";
+        hasErrors = true;
+      } else if (!validateAddress(formData.locationAddress)) {
+        newFieldErrors.locationAddress = "Enter a complete address (e.g., '123 Main St, Downtown')";
+        hasErrors = true;
+      }
+
+      // Set field errors and show them
+      if (hasErrors) {
+        setFieldErrors(newFieldErrors);
+        toast.error("Please fix the errors below");
+        const firstErrorElement = document.querySelector('[data-error-field]');
+        if (firstErrorElement) {
+          firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setLoading(false);
         return;
       }
 
       // Validate location coordinates if provided
       if (!validateCoordinates(formData.locationLatitude, formData.locationLongitude)) {
-        showValidationError("Invalid location coordinates. Please use 'Get Current Location' or enter a valid address.");
+        setError("Invalid location coordinates. Please use 'Get Current Location' or enter a valid address.");
+        toast.error("Invalid location coordinates");
+        setTimeout(() => errorMsgRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+        setLoading(false);
         return;
       }
 
       // Validate phone number if provided
       if (!validatePhoneNumber(formData.contactPhone)) {
-        showValidationError("Please enter a valid phone number (10-15 digits).");
-        return;
-      }
-
-      // Validate quantity
-      const quantity = parseFloat(formData.quantity);
-      if (isNaN(quantity) || quantity <= 0 || quantity > 1000) {
-        showValidationError("Please enter a valid quantity between 0.1 and 1000 kg.");
+        toast.error("Please enter a valid phone number (10-15 digits).");
+        setLoading(false);
         return;
       }
 
@@ -186,27 +292,41 @@ export function TrackWasteScreen() {
       console.log("Sending waste data:", wasteData); // Debug log
 
       await wasteAPI.createWaste(wasteData);
+
+      // Fetch algorithm insights for the submitted waste
+      const fetchInsights = async () => {
+        try {
+          const [prio, sched, fac] = await Promise.all([
+            wastePriorityAPI.calculatePriority(wasteData.type, wasteData.quantity, 0, 0).catch(() => null),
+            pickupAPI.schedulePickup(wasteData.type, wasteData.quantity, 0, 5).catch(() => null),
+            facilityAPI.getNearestFacility(wasteData.type, wasteData.locationLatitude, wasteData.locationLongitude).catch(() => null),
+          ]);
+          setSubmissionInsights({ priority: prio, schedule: sched, facility: fac });
+        } catch { /* ignore */ }
+      };
+      fetchInsights();
+
       setSuccess("Waste entry saved successfully!");
+      toast.success("Waste entry saved successfully!");
       
       // Scroll to top to ensure success message is visible
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
       // Reset form with appropriate defaults based on active tab
-      const defaultCondition = activeTab === "food" ? "fresh" : "working";
-      const defaultDisposal = activeTab === "food" ? "compost" : "dropoff";
+      const defaults = getDefaultsForTab(activeTab);
       
       setFormData({
-        type: "E-WASTE",
+        type: activeTab === "food" ? "FOOD" : "E-WASTE",
         description: "",
         quantity: "",
-        condition: defaultCondition,
-        disposalMethod: defaultDisposal,
+        condition: defaults.condition,
+        disposalMethod: defaults.disposalMethod,
         pickupRequested: false,
         contactPhone: "",
         notes: "",
         locationAddress: "",
-        locationLatitude: 12.9716,
-        locationLongitude: 77.5946,
+        locationLatitude: 11.0168,
+        locationLongitude: 76.9558,
       });
       setLogDate(undefined);
       setLogTime("09:00");
@@ -216,9 +336,12 @@ export function TrackWasteScreen() {
       setTimeout(() => {
         fetchWasteEntries();
         setSuccess("");
+        setSubmissionInsights(null);
       }, 4000); // Extended to 4 seconds for better visibility
     } catch (err) {
-      setError("Failed to save waste entry. Please try again.");
+      const msg = "Failed to save waste entry. Please try again.";
+      setError(msg);
+      toast.error(msg);
       console.error("Submit error:", err);
     } finally {
       setLoading(false);
@@ -230,10 +353,32 @@ export function TrackWasteScreen() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
+        const base64 = reader.result as string;
+        setPhotoPreview(base64);
+        analyseWithAI(base64);
+        e.target.value = "";
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleTabChange = (tab: string) => {
+    // If applying AI result, just change tab without resetting form
+    if (isApplyingAiResult) {
+      setActiveTab(tab);
+      setIsApplyingAiResult(false);
+      return;
+    }
+
+    // User-triggered tab change: reset form to defaults
+    setActiveTab(tab);
+    const defaults = getDefaultsForTab(tab);
+    setFormData((prev) => ({
+      ...prev,
+      type: tab === "food" ? "FOOD" : "E-WASTE",
+      condition: defaults.condition,
+      disposalMethod: defaults.disposalMethod,
+    }));
   };
 
   const startCamera = async () => {
@@ -291,6 +436,7 @@ export function TrackWasteScreen() {
         const imageData = canvas.toDataURL('image/jpeg', 0.9);
         setPhotoPreview(imageData);
         stopCamera();
+        analyseWithAI(imageData);
       }
     } else {
       setError('Camera not ready. Please wait for the camera to load.');
@@ -342,11 +488,101 @@ export function TrackWasteScreen() {
 
   const removePhoto = () => {
     setPhotoPreview(null);
+    setAiResult(null);
+    setAiClassificationId(null);
+    setAiError(null);
+    setLastBase64(null);
+  };
+
+  const analyseWithAI = async (base64: string) => {
+    if (!userId) return;
+    setAiLoading(true);
+    setAiResult(null);
+    setAiClassificationId(null);
+    setAiError(null);
+    setLastBase64(base64);
+    try {
+      const result = await wasteAPI.classifyImage(parseInt(userId), base64);
+      setAiResult(result);
+      setAiClassificationId(result.id);
+    } catch (err: any) {
+      if (err?.status === 429) {
+        setAiError('rate_limit');
+      } else {
+        setAiError('failed');
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const applyAiResult = (accepted: boolean) => {
+    if (!aiResult) return;
+
+    // Normalise category — model may return "food waste", "e-waste", "ewaste", etc.
+    const rawCategory = (aiResult.predictedCategory || "").toLowerCase();
+    const isEwaste = rawCategory.includes("e-waste") || rawCategory.includes("ewaste") ||
+                     rawCategory.includes("electronic") || rawCategory === "e_waste";
+
+    // Normalise condition (case-insensitive, partial match)
+    const rawCond = (aiResult.predictedCondition || "").toLowerCase();
+    let condition: string;
+    if (isEwaste) {
+      if (rawCond.includes("repair") || rawCond.includes("repairable")) condition = "repairable";
+      else if (rawCond.includes("broken") || rawCond.includes("damaged") || rawCond.includes("defective")) condition = "broken";
+      else condition = "working";
+    } else {
+      if (rawCond.includes("expir") || rawCond.includes("near")) condition = "expired";
+      else if (rawCond.includes("spoil") || rawCond.includes("rotten")) condition = "spoiled";
+      else if (rawCond.includes("surplus") || rawCond.includes("leftover") || rawCond.includes("left over")) condition = "leftover";
+      else condition = "fresh";
+    }
+
+    // Normalise disposal method (case-insensitive, partial match)
+    const rawDisposal = (aiResult.predictedDisposal || "").toLowerCase();
+    let disposalMethod: string;
+    if (isEwaste) {
+      if (rawDisposal.includes("pickup") || rawDisposal.includes("pick up") || rawDisposal.includes("pick-up")) disposalMethod = "pickup";
+      else if (rawDisposal.includes("donat") || rawDisposal.includes("reuse")) disposalMethod = "donate";
+      else if (rawDisposal.includes("repair") || rawDisposal.includes("shop")) disposalMethod = "repair";
+      else disposalMethod = "dropoff"; // "drop-off", "drop off", "dropoff", or default
+    } else {
+      if (rawDisposal.includes("food bank") || rawDisposal.includes("food-bank") || rawDisposal.includes("foodbank")) disposalMethod = "food-bank";
+      else if (rawDisposal.includes("donat") || rawDisposal.includes("community")) disposalMethod = "donation";
+      else if (rawDisposal.includes("home") || rawDisposal.includes("process")) disposalMethod = "home-processing";
+      else if (rawDisposal.includes("municipal") || rawDisposal.includes("collect")) disposalMethod = "municipal";
+      else disposalMethod = "compost"; // "compost", "organic", or default
+    }
+
+    const savedId = aiClassificationId;
+    
+    // Queue tab change via state instead of directly calling setActiveTab
+    const newTab = isEwaste ? "ewaste" : "food";
+    setPendingTab(newTab);
+    setIsApplyingAiResult(true);
+    
+    // Set form data with all AI values
+    setFormData(prev => ({
+      ...prev,
+      type: isEwaste ? "E-WASTE" : "FOOD",
+      description: typeof aiResult.itemName === "string" ? aiResult.itemName.trim() : "",
+      quantity: aiResult.estimatedWeight != null ? String(aiResult.estimatedWeight) : "",
+      condition,
+      disposalMethod,
+      notes: typeof aiResult.notes === "string" ? aiResult.notes.trim() : "",
+    }));
+
+    setAiResult(null);
+    setAiClassificationId(null);
+
+    if (savedId) {
+      wasteAPI.updateClassificationAccepted(savedId, accepted).catch(() => {});
+    }
   };
 
   const updateWasteStatus = async (wasteId: number, newStatus: string) => {
     try {
-      await wasteAPI.updateWaste(wasteId, { status: newStatus }, parseInt(userId || "0"));
+      await wasteAPI.updateWasteStatus(wasteId, newStatus, parseInt(userId || "0"));
       // Refresh entries to show updated status
       fetchWasteEntries();
     } catch (error) {
@@ -370,12 +606,9 @@ export function TrackWasteScreen() {
         const { latitude, longitude } = position.coords;
         
         try {
-          // Try to get readable address using reverse geocoding
-          const response = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=YOUR_API_KEY`);
-          
+          // Get readable address using free OpenStreetMap Nominatim API
           let addressText = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
           
-          // Try using OpenStreetMap's Nominatim API (free alternative)
           try {
             const osmResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
             if (osmResponse.ok) {
@@ -414,37 +647,30 @@ export function TrackWasteScreen() {
     );
   };
 
-  const totalLoggedKg = allEntries.reduce(
-    (sum: number, entry: any) => sum + (Number(entry.quantity) || 0),
-    0
-  );
-  const eWasteKg = allEntries
-    .filter((entry: any) => entry.type?.toLowerCase().includes("e"))
-    .reduce((sum: number, entry: any) => sum + (Number(entry.quantity) || 0), 0);
-  const foodWasteKg = allEntries
-    .filter((entry: any) => entry.type?.toLowerCase().includes("food"))
-    .reduce((sum: number, entry: any) => sum + (Number(entry.quantity) || 0), 0);
-  const estimatedCO2Saved = totalLoggedKg * 2.5;
+  // Compute stats with memoization
+  const { totalLoggedKg, eWasteKg, foodWasteKg, estimatedCO2Saved } = useMemo(() => {
+    const total = allEntries.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
+    const eWaste = allEntries
+      .filter((e) => e.type === "E-WASTE")
+      .reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
+    const food = allEntries
+      .filter((e) => e.type === "FOOD")
+      .reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
+    return {
+      totalLoggedKg: total,
+      eWasteKg: eWaste,
+      foodWasteKg: food,
+      estimatedCO2Saved: total * 2.5
+    };
+  }, [allEntries]);
   const lastLogged = allEntries[0];
 
   return (
     <div className="min-h-screen bg-background pb-6">
       {/* Header */}
       <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold">
-          {userRole === "COLLECTOR" ? "Waste Management" : "Track Waste"}
-        </h1>
-        <p className="text-sm opacity-90 mt-1">
-          {userRole === "COLLECTOR" 
-            ? "Manage collections and update waste status"
-            : "Log your waste to track your impact"
-          }
-        </p>
-        {userRole === "COLLECTOR" && (
-          <div className="mt-3 text-xs bg-blue-500/20 px-3 py-2 rounded-lg">
-            🚛 Collector tools: Update waste status, manage pickups
-          </div>
-        )}
+        <h1 className="text-2xl font-bold">Track Waste</h1>
+        <p className="text-sm opacity-90 mt-1">Log your waste to track your impact</p>
       </div>
 
       <div className="px-6 py-6 space-y-6">
@@ -501,7 +727,7 @@ export function TrackWasteScreen() {
         )}
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           {/* Success/Error Messages - Positioned at top */}
           {success && (
             <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4 sticky top-0 z-10 shadow-sm">
@@ -511,8 +737,53 @@ export function TrackWasteScreen() {
               </div>
             </div>
           )}
+
+          {/* Algorithm Insights after submission */}
+          {submissionInsights && (
+            <div className="space-y-2 mb-4 animate-in fade-in">
+              {submissionInsights.priority && (
+                <Card className="p-3 bg-orange-50 border-orange-200">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-medium flex items-center gap-1 text-orange-800">
+                      <Gauge className="h-3.5 w-3.5" /> Priority Score
+                    </span>
+                    <span className={`text-xs font-bold ${
+                      submissionInsights.priority.priorityLevel === "HIGH" ? "text-orange-700" : "text-gray-600"
+                    }`}>
+                      {submissionInsights.priority.priorityScore.toFixed(1)} — {submissionInsights.priority.priorityLevel}
+                    </span>
+                  </div>
+                  <Progress value={Math.min(submissionInsights.priority.priorityScore, 100)} className="h-2" />
+                </Card>
+              )}
+              {submissionInsights.schedule && (
+                <Card className="p-3 bg-blue-50 border-blue-200">
+                  <div className="flex items-start gap-2">
+                    <CalendarClock className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-blue-800">Estimated Pickup Schedule</p>
+                      <p className="text-xs text-blue-700 mt-0.5">{submissionInsights.schedule.pickupSchedule}</p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+              {submissionInsights.facility && (
+                <Card className="p-3 bg-purple-50 border-purple-200">
+                  <div className="flex items-start gap-2">
+                    <Building2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-purple-800">Nearest Recycling Facility</p>
+                      <p className="text-xs text-purple-700 mt-0.5">
+                        {submissionInsights.facility.name} ({submissionInsights.facility.type})
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 sticky top-0 z-10 shadow-sm">
+            <div ref={errorMsgRef} className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 sticky top-0 z-10 shadow-sm">
               <div className="flex items-center gap-2">
                 <X className="h-4 w-4" />
                 {error}
@@ -520,7 +791,7 @@ export function TrackWasteScreen() {
             </div>
           )}
           
-          <TabsList className="grid w-full grid-cols-2 h-12 bg-gray-100 border border-gray-300 rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-3 h-12 bg-gray-100 border border-gray-300 rounded-lg p-1">
             <TabsTrigger 
               value="ewaste" 
               className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm text-gray-700 font-medium border border-transparent data-[state=active]:border-gray-200"
@@ -533,8 +804,15 @@ export function TrackWasteScreen() {
             >
               Food Waste
             </TabsTrigger>
+            <TabsTrigger 
+              value="analytics" 
+              className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm text-gray-700 font-medium border border-transparent data-[state=active]:border-gray-200"
+            >
+              Analytics
+            </TabsTrigger>
           </TabsList>
 
+          {activeTab !== "analytics" && (
           <TabsContent value={activeTab} className="space-y-4 mt-6">
             {/* Photo Capture Section */}
             <div className="space-y-3">
@@ -607,10 +885,72 @@ export function TrackWasteScreen() {
               )}
             </div>
 
+            {/* AI Classification */}
+            {aiLoading && (
+              <Card className="p-4 flex items-center gap-3 bg-blue-50 border-blue-200">
+                <Bot className="h-5 w-5 text-blue-600 animate-pulse" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-700">Analysing your photo...</p>
+                  <p className="text-xs text-blue-500">AI is classifying your waste</p>
+                </div>
+              </Card>
+            )}
+
+            {aiError && !aiLoading && (
+              <Card className="p-4 flex items-center justify-between gap-3 bg-amber-50 border-amber-200">
+                <div className="flex items-center gap-3">
+                  <Bot className="h-5 w-5 text-amber-600 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700">
+                      {aiError === 'rate_limit' ? 'AI is busy right now' : 'AI analysis unavailable'}
+                    </p>
+                    <p className="text-xs text-amber-600">
+                      {aiError === 'rate_limit' ? 'Tap retry to try again' : 'Fill in the form manually'}
+                    </p>
+                  </div>
+                </div>
+                {(aiError === 'rate_limit' || aiError === 'failed') && lastBase64 && (
+                  <Button size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-700" onClick={() => analyseWithAI(lastBase64)}>
+                    Retry
+                  </Button>
+                )}
+              </Card>
+            )}
+
+            {aiResult && !aiLoading && (
+              <Card className="p-4 space-y-3 bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-blue-600" />
+                  <span className="font-semibold text-sm text-blue-800">AI Classification Result</span>
+                  <span className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                    {aiResult.confidenceScore}% confident
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                  <div><span className="text-muted-foreground">Category:</span> <span className="font-medium">{aiResult.predictedCategory}</span></div>
+                  <div><span className="text-muted-foreground">Item:</span> <span className="font-medium">{aiResult.itemName}</span></div>
+                  <div><span className="text-muted-foreground">Condition:</span> <span className="font-medium">{aiResult.predictedCondition}</span></div>
+                  <div><span className="text-muted-foreground">Disposal:</span> <span className="font-medium">{aiResult.predictedDisposal}</span></div>
+                  <div><span className="text-muted-foreground">Est. Weight:</span> <span className="font-medium">{aiResult.estimatedWeight} kg</span></div>
+                </div>
+                {aiResult.notes && (
+                  <p className="text-xs text-muted-foreground italic border-t pt-2">{aiResult.notes}</p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" className="flex-1" onClick={() => applyAiResult(true)}>
+                    Use these details
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => applyAiResult(false)}>
+                    Edit manually
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             {/* Form */}
             <form onSubmit={handleSubmit}>
               <Card className="p-4 space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-2" data-error-field="description">
                   <Label className="text-gray-700 font-medium">Description</Label>
                   <Input
                     type="text"
@@ -619,13 +959,26 @@ export function TrackWasteScreen() {
                         ? "e.g., Leftover Rice, Expired Milk, Vegetable Peels, Bread" 
                         : "e.g., Old Phone, Laptop, Tablet, Headphones, Charger"
                     }
-                    className="h-12 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 bg-white text-gray-900 placeholder:text-gray-500"
+                    className={`h-12 border-2 focus:border-green-500 focus:ring-green-500 bg-white text-gray-900 placeholder:text-gray-500 ${
+                      fieldErrors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, description: e.target.value });
+                      if (fieldErrors.description) {
+                        setFieldErrors({ ...fieldErrors, description: undefined });
+                      }
+                    }}
                   />
+                  {fieldErrors.description && (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {fieldErrors.description}
+                    </p>
+                  )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2" data-error-field="quantity">
                   <Label className="text-gray-700 font-medium">Weight or Quantity</Label>
                   <Input
                     type="number"
@@ -635,11 +988,24 @@ export function TrackWasteScreen() {
                         ? "e.g., 1.5 (in kg or liters)"
                         : "e.g., 2.5 (in kg)"
                     }
-                    className="h-12 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 bg-white text-gray-900 placeholder:text-gray-500"
+                    className={`h-12 border-2 focus:border-green-500 focus:ring-green-500 bg-white text-gray-900 placeholder:text-gray-500 ${
+                      fieldErrors.quantity ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, quantity: e.target.value });
+                      if (fieldErrors.quantity) {
+                        setFieldErrors({ ...fieldErrors, quantity: undefined });
+                      }
+                    }}
                     required
                   />
+                  {fieldErrors.quantity && (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {fieldErrors.quantity}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -827,17 +1193,30 @@ export function TrackWasteScreen() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2" data-error-field="locationAddress">
                   <Label>Location *</Label>
                   <div className="relative">
                     <Input
                       placeholder="Enter address or use current location"
-                      className="h-12 pr-10"
+                      className={`h-12 pr-10 border-2 focus:border-green-500 focus:ring-green-500 ${
+                        fieldErrors.locationAddress ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       value={formData.locationAddress}
-                      onChange={(e) => setFormData({ ...formData, locationAddress: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, locationAddress: e.target.value });
+                        if (fieldErrors.locationAddress) {
+                          setFieldErrors({ ...fieldErrors, locationAddress: undefined });
+                        }
+                      }}
                     />
                     <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   </div>
+                  {fieldErrors.locationAddress && (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {fieldErrors.locationAddress}
+                    </p>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -897,6 +1276,131 @@ export function TrackWasteScreen() {
               </Card>
             </form>
           </TabsContent>
+          )}
+
+          <TabsContent value="analytics" className="space-y-4 mt-6">
+            {/* Analytics Time Range */}
+            <div className="flex gap-2">
+              {(["week", "month", "year"] as const).map((r) => (
+                <Button
+                  key={r}
+                  size="sm"
+                  variant={analyticsTimeRange === r ? "default" : "outline"}
+                  onClick={() => setAnalyticsTimeRange(r)}
+                  className="capitalize"
+                >
+                  {r}
+                </Button>
+              ))}
+            </div>
+
+            {analyticsLoading ? (
+              <Card className="p-8 text-center text-muted-foreground">
+                <BarChart3 className="h-8 w-8 mx-auto mb-2 animate-pulse" />
+                Loading analytics...
+              </Card>
+            ) : analyticsData ? (
+              <>
+                {/* Key Metrics */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">Total Waste</span>
+                    </div>
+                    <p className="text-2xl font-bold">{analyticsData.analytics?.totalWaste ?? 0}kg</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      {(analyticsData.analytics?.changePercentage ?? 0) < 0
+                        ? <TrendingDown className="h-4 w-4 text-green-500" />
+                        : <TrendingUp className="h-4 w-4 text-red-500" />}
+                      <span className={`text-xs ${
+                        (analyticsData.analytics?.changePercentage ?? 0) < 0 ? "text-green-600" : "text-red-600"
+                      }`}>
+                        {Math.abs(analyticsData.analytics?.changePercentage ?? 0).toFixed(1)}% vs prev period
+                      </span>
+                    </div>
+                  </Card>
+                  <Card className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Recycle className="h-5 w-5 text-secondary" />
+                      <span className="text-sm font-medium">Entries</span>
+                    </div>
+                    <p className="text-2xl font-bold">{analyticsData.analytics?.entryCount ?? 0}</p>
+                    <p className="text-xs text-muted-foreground mt-1">This {analyticsTimeRange}</p>
+                  </Card>
+                </div>
+
+                {/* Waste by Category */}
+                {analyticsData.analytics?.wasteByCategory &&
+                  Object.keys(analyticsData.analytics.wasteByCategory).length > 0 && (
+                  <Card className="p-4">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-primary" /> By Category
+                    </h3>
+                    <div className="space-y-2">
+                      {Object.entries(analyticsData.analytics.wasteByCategory).map(
+                        ([cat, kg]: [string, any], i) => {
+                          const colors = ["bg-primary", "bg-secondary", "bg-accent", "bg-yellow-500", "bg-purple-500"];
+                          const total = Object.values(analyticsData.analytics.wasteByCategory as Record<string, number>).reduce((a: number, b) => a + Number(b), 0);
+                          const pct = total > 0 ? (Number(kg) / total) * 100 : 0;
+                          return (
+                            <div key={cat}>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="font-medium">{cat}</span>
+                                <span className="text-muted-foreground">{Number(kg).toFixed(1)}kg</span>
+                              </div>
+                              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full ${colors[i % colors.length]} rounded-full`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+                  </Card>
+                )}
+
+                {/* Trend bars */}
+                {analyticsData.trends?.trends?.length > 0 && (
+                  <Card className="p-4">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-primary" /> Trend
+                    </h3>
+                    <div className="flex items-end gap-1 h-24">
+                      {analyticsData.trends.trends.map((t: any, i: number) => {
+                        const max = Math.max(...analyticsData.trends.trends.map((x: any) => Number(x.waste) || 0), 1);
+                        const h = Math.max((Number(t.waste) / max) * 100, 2);
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div
+                              className="w-full bg-primary/80 rounded-t"
+                              style={{ height: `${h}%` }}
+                              title={`${t.period}: ${Number(t.waste).toFixed(1)}kg`}
+                            />
+                            <span className="text-[9px] text-muted-foreground truncate w-full text-center">{t.period}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                )}
+
+                <Link to="/app/analytics">
+                  <Button variant="outline" className="w-full">
+                    <BarChart3 className="mr-2 h-4 w-4" /> View Full Analytics
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <Card className="p-6 text-center text-muted-foreground">
+                No analytics data yet. Start logging waste to see your impact!
+              </Card>
+            )}
+          </TabsContent>
+
         </Tabs>
 
         {/* Recent Entries */}
@@ -929,18 +1433,6 @@ export function TrackWasteScreen() {
                       <p className="text-sm text-muted-foreground">
                         {new Date(entry.createdAt).toLocaleDateString()}
                       </p>
-                      {userRole === 'COLLECTOR' && entry.status === 'PENDING' && (
-                        <div className="mt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                            onClick={() => updateWasteStatus(entry.id, 'IN_PROGRESS')}
-                          >
-                            Mark In Progress
-                          </Button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </Card>

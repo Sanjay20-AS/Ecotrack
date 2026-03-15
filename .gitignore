@@ -1,4 +1,87 @@
-node_modules
-dist
-.vscode
-*.log
+# ─── Frontend Dependencies ─────────────────────────────────────
+node_modules/
+package-lock.json
+yarn.lock
+
+# ─── Frontend Build Outputs ────────────────────────────────────
+dist/
+.next/
+*.tsbuildinfo
+
+# ─── Backend Dependencies ──────────────────────────────────────
+backend/target/
+backend/.mvn/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/lib/
+
+# ─── Build Artifacts ──────────────────────────────────────────
+*.jar
+*.war
+*.class
+*.o
+
+# ─── Environment Configuration (NEVER COMMIT) ──────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.production.local
+backend/src/main/resources/application.properties
+backend/src/main/resources/application-*.properties
+backend/src/main/resources/application-prod.properties
+
+# ─── Test & Temporary Files ───────────────────────────────────
+backend/accuracy_report.txt
+backend/test-images/
+backend/uploads/
+notes.txt
+*.zip
+*.sql
+debug.log
+test-*.log
+
+# ─── JVM Crash Dumps ──────────────────────────────────────────
+hs_err_pid*.log
+replay_pid*.log
+*.hprof
+
+# ─── IDE & Editor Configuration ────────────────────────────────
+.vscode/
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.idea/
+.idea_modules/
+*.iml
+*.iws
+*.ipr
+*.sublime-workspace
+*.sublime-project
+
+# ─── Editor Temporary Files ───────────────────────────────────
+*.swp
+*.swo
+*.swn
+*~
+.DS_Store
+Thumbs.db
+.directory
+
+# ─── Project-specific ─────────────────────────────────────────
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+
+# ─── OS & System Files ────────────────────────────────────────
+Thumbs.db
+.DS_Store
+.directory
+*.pem
+*.key
+
+# ─── Local Build/Runtime ──────────────────────────────────────
+.m2/
+.gradle/
+.java-version

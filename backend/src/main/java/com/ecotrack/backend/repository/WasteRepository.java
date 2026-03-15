@@ -11,4 +11,6 @@ public interface WasteRepository extends JpaRepository<Waste, Long> {
     List<Waste> findByUserId(Long userId);
     List<Waste> findByType(String type);
     List<Waste> findByStatus(String status);
+    List<Waste> findByCollectedById(Long collectorId);
+    List<Waste> findByCollectedByIdAndStatus(Long collectorId, String status);
 }

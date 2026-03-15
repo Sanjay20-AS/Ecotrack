@@ -11,7 +11,15 @@ public class WastePriorityService {
             int daysSincePosted,
             double distanceKm) {
 
-        double weightFactor = wasteType.equalsIgnoreCase("FOOD") ? 2.0 : 1.5;
+        double weightFactor;
+        switch (wasteType.toUpperCase()) {
+            case "FOOD":    weightFactor = 2.0; break;   // perishable — highest priority
+            case "E-WASTE": weightFactor = 1.8; break;   // hazardous components
+            case "PLASTIC": weightFactor = 1.2; break;
+            case "PAPER":   weightFactor = 1.0; break;
+            case "ORGANIC": weightFactor = 1.6; break;   // decomposes if left
+            default:        weightFactor = 1.5;
+        }
         double urgencyFactor = daysSincePosted * 1.2;
         double distancePenalty = distanceKm * 0.5;
 

@@ -49,11 +49,34 @@ public class User {
     @Column(nullable = true)
     private Role role = Role.DONOR;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status")
+    private AccountStatus accountStatus = AccountStatus.ACTIVE;
+
     @ManyToOne
     @JoinColumn(name = "community_id", nullable = true)
     private Community community;
 
-    public User() {}
+    // ── Collector application fields (nullable, only for COLLECTOR role) ──
+    @Column(name = "organization_name")
+    private String organizationName;
+
+    @Column(name = "reason_for_collecting", columnDefinition = "TEXT")
+    private String reasonForCollecting;
+
+    @Column(name = "vehicle_type")
+    private String vehicleType;
+
+    @Column(name = "operation_area")
+    private String operationArea;
+
+    // ── Admin review fields (nullable, for approval/rejection reasons) ──
+    @Column(name = "admin_review_note", columnDefinition = "TEXT")
+    private String adminReviewNote;
+
+    // Default constructor required by Hibernate
+    protected User() {
+    }
 
     public User(String email, String password, String name, double latitude, double longitude) {
         this.email = email;
@@ -167,5 +190,53 @@ public class User {
 
     public void setCommunity(Community community) {
         this.community = community;
+    }
+
+    public AccountStatus getAccountStatus() {
+        return accountStatus != null ? accountStatus : AccountStatus.ACTIVE;
+    }
+
+    public void setAccountStatus(AccountStatus accountStatus) {
+        this.accountStatus = accountStatus;
+    }
+
+    public String getOrganizationName() {
+        return organizationName;
+    }
+
+    public void setOrganizationName(String organizationName) {
+        this.organizationName = organizationName;
+    }
+
+    public String getReasonForCollecting() {
+        return reasonForCollecting;
+    }
+
+    public void setReasonForCollecting(String reasonForCollecting) {
+        this.reasonForCollecting = reasonForCollecting;
+    }
+
+    public String getVehicleType() {
+        return vehicleType;
+    }
+
+    public void setVehicleType(String vehicleType) {
+        this.vehicleType = vehicleType;
+    }
+
+    public String getOperationArea() {
+        return operationArea;
+    }
+
+    public void setOperationArea(String operationArea) {
+        this.operationArea = operationArea;
+    }
+
+    public String getAdminReviewNote() {
+        return adminReviewNote;
+    }
+
+    public void setAdminReviewNote(String adminReviewNote) {
+        this.adminReviewNote = adminReviewNote;
     }
 }

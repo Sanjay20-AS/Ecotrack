@@ -18,10 +18,16 @@ public class MarketplaceItem {
     private String description;
 
     @Column
-    private String category; // ECO_PRODUCTS, SERVICES, TIPS, RESOURCES
+    private String category; // ELECTRONICS, FURNITURE, CLOTHING, BOOKS, APPLIANCES, OTHER
 
     @Column(nullable = false)
     private double price;
+
+    @Column(name = "is_free", nullable = false)
+    private boolean isFree = false;
+
+    @Column
+    private String condition; // WORKING, GOOD, FAIR, POOR
 
     @Column
     private String currency; // USD, INR, etc.
@@ -107,6 +113,22 @@ public class MarketplaceItem {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public boolean isFree() {
+        return isFree;
+    }
+
+    public void setFree(boolean free) {
+        isFree = free;
+    }
+
+    public String getCondition() {
+        return condition;
+    }
+
+    public void setCondition(String condition) {
+        this.condition = condition;
     }
 
     public User getSeller() {

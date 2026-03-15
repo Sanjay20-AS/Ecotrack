@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { userAPI } from "../services/apiService";
+import toast from "react-hot-toast";
 
 export function LoginScreen() {
   const navigate = useNavigate();
@@ -21,11 +22,28 @@ export function LoginScreen() {
 
     try {
       const user = await userAPI.login(email, password);
+      
+      // Check collector account status
+      if (user.role === "COLLECTOR") {
+        if (user.accountStatus === "REJECTED") {
+          setError("Your collector application was rejected. Please contact support at support@ecotrack.app for details.");
+          setLoading(false);
+          return;
+        }
+        if (user.accountStatus === "PENDING_APPROVAL") {
+          setError("Your collector account is pending approval. We'll notify you via email once you're approved. This typically takes 24-48 hours.");
+          setLoading(false);
+          return;
+        }
+      }
+      
       // Store user and role in localStorage
       localStorage.setItem("user", JSON.stringify(user));
       localStorage.setItem("userId", user.id.toString());
       localStorage.setItem("userRole", user.role);
-      navigate("/app");
+      localStorage.setItem("accountStatus", user.accountStatus || "ACTIVE");
+      if (user.token) localStorage.setItem("token", user.token);
+      navigate(user.role === "ADMIN" ? "/admin" : "/app");
     } catch (err) {
       setError("Invalid email or password. Please try again.");
       console.error(err);
@@ -42,7 +60,7 @@ export function LoginScreen() {
           <div className="w-14 h-14 bg-primary rounded-full flex items-center justify-center">
             <Leaf className="h-8 w-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-primary">ecotrack</h1>
+          <h1 className="text-3xl font-bold text-primary">EcoTrack</h1>
         </div>
         <p className="text-muted-foreground text-center">
           Track, reduce, and manage your waste sustainably
@@ -63,7 +81,9 @@ export function LoginScreen() {
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               id="email"
-              type="text"
+              name="email"
+              type="email"
+              autoComplete="email"
               placeholder="Enter your email or phone"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -79,7 +99,9 @@ export function LoginScreen() {
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               id="password"
+              name="password"
               type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -120,7 +142,7 @@ export function LoginScreen() {
 
         {/* Social Login */}
         <div className="grid grid-cols-2 gap-3">
-          <Button variant="outline" size="lg" className="h-12">
+          <Button variant="outline" size="lg" className="h-12" type="button" onClick={() => toast("Google login coming soon! Use email login for now.", { icon: "🔜" })}>
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
@@ -141,7 +163,7 @@ export function LoginScreen() {
             </svg>
             Google
           </Button>
-          <Button variant="outline" size="lg" className="h-12">
+          <Button variant="outline" size="lg" className="h-12" type="button" onClick={() => toast("Facebook login coming soon! Use email login for now.", { icon: "🔜" })}>
             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
             </svg>

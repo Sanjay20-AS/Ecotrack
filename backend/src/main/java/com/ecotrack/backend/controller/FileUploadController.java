@@ -15,7 +15,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/upload")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"})
 public class FileUploadController {
 
     private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList(

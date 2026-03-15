@@ -1,13 +1,45 @@
 // API Service for EcoTrack Backend
+import toast from 'react-hot-toast';
+
 const API_BASE_URL = 'http://localhost:8080/api';
 
+// Custom API error with status and parsed body
+export class ApiError extends Error {
+  status: number;
+  data: any;
+  constructor(status: number, data: any, message: string) {
+    super(message);
+    this.status = status;
+    this.data = data;
+  }
+}
+
+// Helper: extract user-friendly error message
+function friendlyMessage(status: number, data: any): string {
+  if (data?.error) return data.error;
+  if (status === 403) return 'You are not authorized to perform this action.';
+  if (status === 409) return 'This resource has already been modified by someone else.';
+  if (status === 404) return 'The requested resource was not found.';
+  if (status === 400) return 'Invalid request. Please check your input.';
+  if (status >= 500) return 'Server error. Please try again later.';
+  return `Unexpected error (${status})`;
+}
+
 // Helper function for API calls
-const apiCall = async (endpoint: string, method: string = 'GET', data?: any) => {
+const apiCall = async (endpoint: string, method: string = 'GET', data?: any, silent: boolean = false) => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Attach JWT token for authenticated requests
+  const token = localStorage.getItem('token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const options: RequestInit = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
   };
 
   if (data) {
@@ -18,16 +50,47 @@ const apiCall = async (endpoint: string, method: string = 'GET', data?: any) => 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
     
     if (!response.ok) {
-      let errorMessage = `API Error: ${response.status} ${response.statusText}`;
-      try {
-        const errorBody = await response.text();
-        if (errorBody) {
-          errorMessage += ` - ${errorBody}`;
-        }
-      } catch (e) {
-        // Ignore parsing errors for error response
+      // Handle expired/invalid token — redirect to login
+      // Only redirect if we have a token AND it's actually a 401 (not just any error)
+      if (response.status === 401 && localStorage.getItem('token')) {
+        localStorage.clear();
+        // Use a small delay to ensure clear() completes before redirect
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 50);
+        throw new ApiError(401, null, 'Session expired. Please log in again.');
       }
-      throw new Error(errorMessage);
+
+      // 403 with no token in storage = unauthenticated, redirect to login
+      if (response.status === 403 && !localStorage.getItem('token')) {
+        window.location.href = '/';
+        throw new ApiError(403, null, 'Please log in to continue.');
+      }
+
+      let errorData: any = null;
+      try {
+        const text = await response.text();
+        if (text) {
+          try { errorData = JSON.parse(text); } catch { errorData = { error: text }; }
+        }
+      } catch { /* ignore */ }
+
+      const msg = friendlyMessage(response.status, errorData);
+      const apiError = new ApiError(response.status, errorData, msg);
+
+      // Show toast for all non-silenced errors
+      if (!silent) {
+        if (response.status === 403) {
+          toast.error(msg, { id: `err-403-${endpoint}` });
+        } else if (response.status === 409) {
+          toast.error(msg, { id: `err-409-${endpoint}` });
+        } else if (response.status >= 500) {
+          toast.error(msg, { id: `err-500-${endpoint}` });
+        }
+      }
+      // 400/404 are usually handled inline, so we don't toast them by default
+
+      throw apiError;
     }
 
     const contentType = response.headers.get('content-type');
@@ -37,7 +100,12 @@ const apiCall = async (endpoint: string, method: string = 'GET', data?: any) => 
       return await response.text();
     }
   } catch (error) {
+    // If it's already an ApiError, re-throw as-is
+    if (error instanceof ApiError) throw error;
+
+    // Network / connection errors
     console.error('API call failed:', error);
+    toast.error('Unable to reach server. Check your connection.', { id: 'network-error' });
     throw error;
   }
 };
@@ -49,9 +117,21 @@ export const userAPI = {
   signup: (userData: any) => apiCall('/users/signup', 'POST', userData),
   login: (email: string, password: string) => 
     apiCall('/users/login', 'POST', { email, password }),
+  resetPassword: (email: string, newPassword: string) =>
+    apiCall('/users/reset-password', 'POST', { email, newPassword }),
   updateUser: (id: number, userData: any) => 
     apiCall(`/users/${id}`, 'PUT', userData),
   deleteUser: (id: number) => apiCall(`/users/${id}`, 'DELETE'),
+  // Admin APIs
+  getAdminStats: (adminId: number) => apiCall(`/users/admin/stats?adminId=${adminId}`),
+  getPendingCollectors: (adminId: number) => apiCall(`/users/pending-collectors?adminId=${adminId}`),
+  updateAccountStatus: (userId: number, accountStatus: string, adminId: number, reason?: string) => {
+    const body: any = { accountStatus };
+    if (reason) {
+      body.reason = reason;
+    }
+    return apiCall(`/users/${userId}/account-status?adminId=${adminId}`, 'PATCH', body);
+  },
 };
 
 // Waste APIs
@@ -64,6 +144,14 @@ export const wasteAPI = {
   createWaste: (wasteData: any) => apiCall('/waste', 'POST', wasteData),
   updateWaste: (id: number, wasteData: any, currentUserId?: number) => 
     apiCall(`/waste/${id}${currentUserId ? `?currentUserId=${currentUserId}` : ''}`, 'PUT', wasteData),
+  updateWasteStatus: (id: number, status: string, currentUserId?: number, collectorNotes?: string, extras?: { collectionPhotoUrl?: string; collectorLatitude?: number; collectorLongitude?: number }) => {
+    const body: any = { status };
+    if (collectorNotes) body.collectorNotes = collectorNotes;
+    if (extras?.collectionPhotoUrl) body.collectionPhotoUrl = extras.collectionPhotoUrl;
+    if (extras?.collectorLatitude != null) body.collectorLatitude = String(extras.collectorLatitude);
+    if (extras?.collectorLongitude != null) body.collectorLongitude = String(extras.collectorLongitude);
+    return apiCall(`/waste/${id}/status${currentUserId ? `?currentUserId=${currentUserId}` : ''}`, 'PATCH', body);
+  },
   deleteWaste: (id: number) => apiCall(`/waste/${id}`, 'DELETE'),
   
   // Analytics APIs
@@ -72,6 +160,19 @@ export const wasteAPI = {
   getUserTrends: (userId: number, timeRange: string = 'month') => 
     apiCall(`/waste/analytics/trends/${userId}?timeRange=${timeRange}`),
   getGlobalAnalytics: () => apiCall('/waste/analytics/global'),
+  // Collector-specific analytics
+  getCollectorAnalytics: (collectorId: number, timeRange: string = 'month') =>
+    apiCall(`/waste/analytics/collector/${collectorId}?timeRange=${timeRange}`),
+  getCollectorTrends: (collectorId: number, timeRange: string = 'month') =>
+    apiCall(`/waste/analytics/collector-trends/${collectorId}?timeRange=${timeRange}`),
+  getCollectorDashboardStats: (collectorId: number) =>
+    apiCall(`/waste/analytics/collector-dashboard/${collectorId}`),
+  getCollectorHistory: (collectorId: number) =>
+    apiCall(`/waste/collector-history/${collectorId}`),
+  classifyImage: (userId: number, imageBase64: string) =>
+    apiCall('/waste/classify', 'POST', { userId, imageBase64 }, true),
+  updateClassificationAccepted: (id: number, wasAccepted: boolean) =>
+    apiCall(`/waste/classifications/${id}/accepted`, 'PATCH', { wasAccepted }),
 };
 
 // Facility APIs
@@ -112,4 +213,75 @@ export const communityAPI = {
   getCommunityMembers: (id: number) => apiCall(`/communities/${id}/members`),
   getCommunityLeaderboard: (id: number) => apiCall(`/communities/${id}/leaderboard`),
   searchCommunities: (name: string) => apiCall(`/communities/search?name=${encodeURIComponent(name)}`),
+};
+
+// Notification APIs
+export const notificationAPI = {
+  getUserNotifications: (userId: number) => apiCall(`/notifications/user/${userId}`),
+  getUnreadCount: (userId: number) => apiCall(`/notifications/user/${userId}/unread`),
+  markAsRead: (id: number) => apiCall(`/notifications/${id}/read`, 'PATCH'),
+  markAllAsRead: (userId: number) => apiCall(`/notifications/user/${userId}/read-all`, 'PATCH'),
+  deleteNotification: (id: number) => apiCall(`/notifications/${id}`, 'DELETE'),
+};
+
+// Marketplace APIs
+export const marketplaceAPI = {
+  getAll: () => apiCall('/marketplace'),
+  getByCategory: (category: string) => apiCall(`/marketplace/category/${encodeURIComponent(category)}`),
+  getMine: (sellerId: number) => apiCall(`/marketplace/seller/${sellerId}`),
+  getById: (id: number) => apiCall(`/marketplace/${id}`),
+  create: (data: any) => apiCall('/marketplace', 'POST', data),
+  update: (id: number, data: any) => apiCall(`/marketplace/${id}`, 'PUT', data),
+  delete: (id: number) => apiCall(`/marketplace/${id}`, 'DELETE'),
+};
+
+// Education APIs
+export const educationAPI = {
+  getAll: () => apiCall('/education'),
+  getByCategory: (category: string) => apiCall(`/education/category/${encodeURIComponent(category)}`),
+  getFeatured: () => apiCall('/education/featured'),
+  getById: (id: number) => apiCall(`/education/${id}`),
+};
+
+// Rewards APIs
+export const rewardsAPI = {
+  getPoints: (userId: number) => apiCall(`/rewards/points/${userId}`),
+  getBadges: () => apiCall('/rewards/badges'),
+  getUserBadges: (userId: number) => apiCall(`/rewards/user-badges/${userId}`),
+  checkBadges: (userId: number) => apiCall(`/rewards/check-badges/${userId}`, 'POST'),
+  redeem: (data: { userId: number; rewardId: string; rewardName: string; pointsCost: number }) =>
+    apiCall('/rewards/redeem', 'POST', data),
+  getRedemptions: (userId: number) => apiCall(`/rewards/redemptions/${userId}`),
+};
+
+// Settings APIs
+export const settingsAPI = {
+  get: (userId: number) => apiCall(`/settings/${userId}`),
+  save: (userId: number, data: any) => apiCall(`/settings/${userId}`, 'PUT', data),
+};
+
+// Support APIs
+export const supportAPI = {
+  submit: (data: { userId: number; subject: string; message: string }) =>
+    apiCall('/support/tickets', 'POST', data),
+  getTickets: (userId: number) => apiCall(`/support/tickets/user/${userId}`),
+};
+
+// File Upload API
+export const uploadAPI = {
+  uploadWasteImage: async (file: File): Promise<{ url: string; filename: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const headers: Record<string, string> = {};
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_BASE_URL}/upload/waste-image`, { method: 'POST', body: formData, headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, data, data.error || 'Upload failed');
+    }
+    return res.json();
+  },
 };
