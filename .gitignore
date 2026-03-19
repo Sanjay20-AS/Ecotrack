@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # ─── Frontend Dependencies ─────────────────────────────────────
 node_modules/
 package-lock.json
@@ -85,3 +86,12 @@ Thumbs.db
 .m2/
 .gradle/
 .java-version
+=======
+node_modules
+dist
+.vscode
+*.log
+.env
+backend/target/
+target/
+>>>>>>> Stashed changes
