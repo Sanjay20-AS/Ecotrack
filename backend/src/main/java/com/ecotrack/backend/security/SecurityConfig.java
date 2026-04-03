@@ -43,6 +43,7 @@ public class SecurityConfig {
                 // Public endpoints — no token required
                 .requestMatchers("/api/users/signup", "/api/users/login", "/api/users/reset-password").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/api/geocode", "/api/geocode/**").permitAll()
                 // All other API endpoints require authentication
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()

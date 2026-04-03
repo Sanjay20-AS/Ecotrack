@@ -6,6 +6,7 @@ import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { rewardsAPI } from "../services/apiService";
 import toast from "react-hot-toast";
+import TopBar from "../components/TopBar";
 
 const POINTS_PER_KG = 10;
 const POINTS_PER_ENTRY = 5;
@@ -127,18 +128,10 @@ export function RewardsScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-8 rounded-b-3xl">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold">Rewards</h1>
-            <p className="text-sm opacity-90 mt-1">Earn points by logging waste</p>
-          </div>
-          <Trophy className="h-8 w-8 opacity-80" />
-        </div>
+      <TopBar variant="banner" title="Rewards" subtitle="Earn points by logging waste" />
 
-        {/* Points balance */}
-        <Card className="bg-card/95 p-4">
+      {/* Points balance */}
+      <Card className="bg-card/95 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Available Points</p>
@@ -164,7 +157,6 @@ export function RewardsScreen() {
             </div>
           )}
         </Card>
-      </div>
 
       <div className="px-6 py-6 space-y-6">
         {/* How points work */}

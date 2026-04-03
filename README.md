@@ -26,7 +26,9 @@ EcoTrack/
 ├── package.json
 └── README.md
 
-https://www.figma.com/design/SnocrQ6WhSeN5IoOKe8KBV/Ecotrack-Mobile-App-UI
+https://www.figma.com/design/SnocrQ6WhSeN5IoOKe8KBV/Ecotrack-Mobile-App-UIAuthentication: Signup (Donor or Collector)
+
+
 
 cd backend; ./mvnw spring-boot:run (or)
 ./mvnw.cmd spring-boot:run

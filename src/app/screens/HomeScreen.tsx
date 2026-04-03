@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, Navigate } from "react-router";
-import { Trash2, Apple, Recycle, TrendingDown, Calendar, Lightbulb, Trophy, ChevronRight, Clock, Truck, CheckCircle2, ShoppingBag, BookOpen, Star } from "lucide-react";
+import { Trash2, Apple, Recycle, TrendingDown, Calendar, Lightbulb, Trophy, ChevronRight, Clock, Truck, CheckCircle2, ShoppingBag, BookOpen, Star, Leaf } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { wasteAPI, userAPI } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 const CO2_RATES: Record<string, number> = {
   FOOD: 2.5,
@@ -122,6 +123,7 @@ export function HomeScreen() {
     { label: "Log E-waste", icon: Trash2, path: "/app/track?type=ewaste", bg: "bg-primary" },
     { label: "Log Food", icon: Apple, path: "/app/track?type=food", bg: "bg-secondary" },
     { label: "Schedule", icon: Calendar, path: "/app/locations", bg: "bg-accent" },
+    { label: "Carbon", icon: Leaf, path: "/app/carbon", bg: "bg-green-600" },
   ];
 
   const getCollectorActions = () => [
@@ -169,39 +171,18 @@ export function HomeScreen() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-8 rounded-b-3xl">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-sm opacity-90">Welcome back,</p>
-            <h1 className="text-2xl font-bold">{user?.name || "User"}</h1>
-            {userRole === "COLLECTOR" && (
-              <p className="text-xs opacity-80">🚛 Collector Dashboard</p>
-            )}
+      <TopBar variant="banner" title="Home" />
+
+      <div className="px-6 pt-4">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
+            <Leaf className="h-8 w-8 text-[#2E8B57]" />
           </div>
-          <div className="w-12 h-12 bg-primary-foreground/20 rounded-full flex items-center justify-center">
-            <Trophy className="h-6 w-6" />
+          <div>
+            <h2 className="text-2xl font-bold">Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!</h2>
+            <div className="text-sm text-muted-foreground">EcoTrack</div>
           </div>
         </div>
-
-        {/* Role-specific Progress */}
-        <Card className="bg-card/95 backdrop-blur p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-foreground">
-              {userRole === "COLLECTOR" ? "Daily Collection Goal" : "Community Goal"}
-            </span>
-            <span className="text-sm font-medium text-foreground">
-              {userRole === "COLLECTOR" ? "75%" : "68%"}
-            </span>
-          </div>
-          <Progress value={userRole === "COLLECTOR" ? 75 : 68} className="h-2 mb-2" />
-          <p className="text-xs text-muted-foreground">
-            {userRole === "COLLECTOR" 
-              ? "15 of 20 scheduled pickups completed today"
-              : "680kg of 1000kg monthly waste reduction goal"
-            }
-          </p>
-        </Card>
       </div>
 
       <div className="px-6 py-6 space-y-6">

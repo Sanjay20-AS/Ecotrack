@@ -285,3 +285,11 @@ export const uploadAPI = {
     return res.json();
   },
 };
+
+// Carbon APIs
+export const carbonAPI = {
+  getCurrentCarbon: (userId: number) => apiCall(`/carbon/${userId}`),
+  getCarbonHistory: (userId: number) => apiCall(`/carbon/${userId}/history`),
+  getLeaderboard: () => apiCall('/carbon/leaderboard'),
+  recalculate: (userId: number) => apiCall(`/carbon/${userId}/recalculate`, 'POST')
+};

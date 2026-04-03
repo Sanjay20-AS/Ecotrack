@@ -15,6 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "../components/ui/dialog";
 import toast from "react-hot-toast";
+import TopBar from "../components/TopBar";
 import { wasteAPI, wastePriorityAPI, pickupAPI, facilityAPI, userAPI, uploadAPI, ApiError } from "../services/apiService";
 
 interface WasteEntry {
@@ -382,15 +383,7 @@ export function CollectorPickupsScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold">Waste Pickups</h1>
-        <p className="text-sm opacity-90 mt-1">
-          {allWaste.filter((w) => w.status === "PENDING").length} pending ·{" "}
-          {allWaste.filter((w) => w.status === "IN_PROGRESS").length} in progress
-        </p>
-      </div>
-
+      <TopBar variant="banner" title="Waste Pickups" subtitle={`${allWaste.filter((w) => w.status === "PENDING").length} pending · ${allWaste.filter((w) => w.status === "IN_PROGRESS").length} in progress`} />
       <div className="px-6 py-5 space-y-4">
         {/* Success Toast */}
         {successMsg && (

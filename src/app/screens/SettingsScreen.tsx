@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Moon, Bell, Lock, Volume2, Eye, Trash2 } from "lucide-react";
+import { ArrowLeft, Moon, Bell, Lock, Volume2, Eye, Trash2, Leaf } from "lucide-react";
 import { Link } from "react-router";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -105,6 +105,17 @@ export function SettingsScreen() {
         <div className="flex items-center justify-center py-20 text-muted-foreground">Loading settings...</div>
       ) : (
         <div className="px-6 py-6 space-y-6">
+          <div className="mb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
+                <Leaf className="h-6 w-6 text-[#2E8B57]" />
+              </div>
+              <div>
+                <div className="text-lg font-semibold">EcoTrack</div>
+                <div className="text-sm text-muted-foreground">Version 0.0.1 · Waste management & rewards</div>
+              </div>
+            </div>
+          </div>
           {/* Display Settings */}
           <div>
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">

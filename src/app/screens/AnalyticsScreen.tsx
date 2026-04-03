@@ -4,6 +4,7 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { wasteAPI } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 interface UserAnalytics {
   totalWaste: number;
@@ -188,17 +189,7 @@ export function AnalyticsScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Analytics</h1>
-            <p className="text-sm opacity-90 mt-1">Track your environmental impact</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-6 w-6" />
-          </div>
-        </div>
-      </div>
+      <TopBar variant="banner" title="Analytics" subtitle="Track your environmental impact" />
 
       <div className="px-6 py-6 space-y-6">
         {/* Dynamic Data Indicator */}

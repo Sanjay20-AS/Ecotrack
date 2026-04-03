@@ -6,11 +6,12 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Calendar as CalendarPicker } from "../components/ui/calendar";
+// CalendarPicker removed: use native date input only
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Progress } from "../components/ui/progress";
 import toast from "react-hot-toast";
 import { wasteAPI, wastePriorityAPI, pickupAPI, facilityAPI } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 interface WasteEntry {
   id: number;
@@ -58,10 +59,9 @@ export function TrackWasteScreen() {
   const errorMsgRef = useRef<HTMLDivElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [addressFromGps, setAddressFromGps] = useState(false);
   const [submissionInsights, setSubmissionInsights] = useState<AnalyticsInsights | null>(null);
   const [logDate, setLogDate] = useState<Date | undefined>(undefined);
-  const [logTime, setLogTime] = useState("09:00");
-  const [showCalendar, setShowCalendar] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
@@ -80,7 +80,10 @@ export function TrackWasteScreen() {
     locationAddress: "",
     locationLatitude: 11.0168,
     locationLongitude: 76.9558,
+    time: "09:00",
   });
+
+  // time is stored in `formData.time` as 24-hour string "HH:MM"
 
   // Analytics state
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -102,7 +105,7 @@ export function TrackWasteScreen() {
 
   const userId = localStorage.getItem("userId");
   const userRole = localStorage.getItem("userRole");
-  const calendarRef = useRef<HTMLDivElement>(null);
+  
 
   useEffect(() => {
     fetchWasteEntries();
@@ -148,21 +151,7 @@ export function TrackWasteScreen() {
     }
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
-        setShowCalendar(false);
-      }
-    };
-
-    if (showCalendar) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showCalendar]);
+  // Calendar popup removed; using native date input only
 
   // Validation helper functions
   const validateCoordinates = (lat: number, lng: number) => {
@@ -184,6 +173,11 @@ export function TrackWasteScreen() {
     // Reject very short addresses
     if (trimmedAddress.length < 10) return false;
     
+    // If this address was set from GPS reverse-geocoding, relax numeric requirement
+    if (addressFromGps && trimmedAddress.length >= 5 && trimmedAddress.includes(",")) {
+      return true;
+    }
+
     // Should contain at least 3 components (door number, street, area)
     const addressParts = trimmedAddress.split(/[,\s]+/).filter(part => part.length > 0);
     if (addressParts.length < 3) return false;
@@ -286,10 +280,94 @@ export function TrackWasteScreen() {
         locationLatitude: formData.locationLatitude,
         locationLongitude: formData.locationLongitude,
         locationAddress: formData.locationAddress.trim() || "Location not specified",
+        time: formData.time,
         status: "PENDING"
       };
 
       console.log("Sending waste data:", wasteData); // Debug log
+
+      // Geocode typed address if coordinates are missing, zero, or equal the fallback coords
+      try {
+        const lat = Number(wasteData.locationLatitude);
+        const lng = Number(wasteData.locationLongitude);
+        const fallbackLat = 11.0168;
+        const fallbackLng = 76.9558;
+        const isMissingOrZero = isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0;
+        const isFallback = Math.abs(lat - fallbackLat) < 1e-6 && Math.abs(lng - fallbackLng) < 1e-6;
+        if (isMissingOrZero || isFallback) {
+          // Attempt Nominatim geocoding for the provided address
+          const addr = (wasteData.locationAddress || "").trim();
+          if (!addr) {
+            toast.error("Could not resolve address coordinates. Please use GPS.");
+            setLoading(false);
+            return;
+          }
+          const tryFetch = async (query: string) => {
+            try {
+              const res = await fetch(`/api/geocode?address=${encodeURIComponent(query)}`);
+              if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                console.warn('Geocoding HTTP error', res.status, res.statusText, text);
+                return null;
+              }
+              const js = await res.json();
+              return js;
+            } catch (ge) {
+              console.warn('Geocoding fetch error (network/CORS?):', ge);
+              return null;
+            }
+          };
+
+          const parseGeo = (js: any) => {
+            if (!js) return null;
+            // Geoapify may return a 'results' array or a 'features' FeatureCollection
+            try {
+              if (js.results && js.results.length > 0 && js.results[0].properties) {
+                const p = js.results[0].properties;
+                if (p.lat != null && p.lon != null) return { lat: Number(p.lat), lon: Number(p.lon) };
+              }
+              if (js.features && js.features.length > 0 && js.features[0].properties) {
+                const p = js.features[0].properties;
+                if (p.lat != null && p.lon != null) return { lat: Number(p.lat), lon: Number(p.lon) };
+                if (js.features[0].geometry && js.features[0].geometry.coordinates && js.features[0].geometry.coordinates.length >= 2) {
+                  // geometry.coordinates is [lon, lat]
+                  return { lat: Number(js.features[0].geometry.coordinates[1]), lon: Number(js.features[0].geometry.coordinates[0]) };
+                }
+              }
+            } catch (e) {
+              console.warn('Failed to parse geocode response', e, js);
+            }
+            return null;
+          };
+
+          // Attempt sequence: full address -> address + city -> area + city -> fallback city center
+          const addrFull = (wasteData.locationAddress || "").trim();
+          let coords = await parseGeo(await tryFetch(addrFull));
+          if (!coords) {
+            const q2 = `${addrFull}, Coimbatore, India`;
+            coords = await parseGeo(await tryFetch(q2));
+          }
+          if (!coords) {
+            const area = addrFull.split(',')[0].trim();
+            if (area && area.length > 3) {
+              const q3 = `${area}, Coimbatore, India`;
+              coords = await parseGeo(await tryFetch(q3));
+            }
+          }
+          if (!coords) {
+            // Use Coimbatore city center as approximate fallback
+            coords = { lat: 11.0168, lon: 76.9558 };
+            toast("Using approximate location for this address");
+          }
+          wasteData.locationLatitude = coords.lat;
+          wasteData.locationLongitude = coords.lon;
+        }
+      } catch (gErr) {
+        console.error('Geocoding step failed:', gErr);
+        toast.error("Could not resolve address coordinates. Please use GPS.");
+        setLoading(false);
+        return;
+      }
 
       await wasteAPI.createWaste(wasteData);
 
@@ -328,8 +406,9 @@ export function TrackWasteScreen() {
         locationLatitude: 11.0168,
         locationLongitude: 76.9558,
       });
+      setAddressFromGps(false);
       setLogDate(undefined);
-      setLogTime("09:00");
+      setFormData((prev) => ({ ...prev, time: "09:00" }));
       setPhotoPreview(null); // Clear photo preview after saving
       
       // Refresh entries
@@ -627,6 +706,7 @@ export function TrackWasteScreen() {
             locationLongitude: longitude,
             locationAddress: addressText,
           }));
+          setAddressFromGps(true);
         } catch (error) {
           console.log('Address lookup failed, using coordinates:', error);
           setFormData((prev) => ({
@@ -667,11 +747,7 @@ export function TrackWasteScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold">Track Waste</h1>
-        <p className="text-sm opacity-90 mt-1">Log your waste to track your impact</p>
-      </div>
+      <TopBar variant="banner" title="Track Waste" subtitle="Log your waste to track your impact" />
 
       <div className="px-6 py-6 space-y-6">
         {/* Real-world Impact Summary */}
@@ -1009,7 +1085,7 @@ export function TrackWasteScreen() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2 relative" ref={calendarRef}>
+                  <div className="space-y-2">
                     <Label className="text-gray-700 font-medium">Date</Label>
                     <div className="flex gap-2">
                       <Input
@@ -1025,14 +1101,7 @@ export function TrackWasteScreen() {
                         className="h-12 flex-1 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 bg-white text-gray-900"
                         placeholder="Enter date manually"
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowCalendar(!showCalendar)}
-                        className="h-12 px-3 shrink-0 border-2 border-gray-300 hover:bg-green-50 hover:border-green-300 bg-white"
-                      >
-                        <Calendar className="h-4 w-4" />
-                      </Button>
+                      {/* Using native date input only; calendar popup removed */}
                     </div>
                     {logDate && (
                       <p className="text-xs text-gray-600 flex items-center gap-1">
@@ -1046,91 +1115,16 @@ export function TrackWasteScreen() {
                       </p>
                     )}
                     
-                    {showCalendar && (
-                      <div className="absolute z-50 top-full left-0 mt-2 p-0 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-3">
-                          <h3 className="font-medium text-sm">
-                            {logDate ? 'Selected Date' : 'Select Date'}
-                          </h3>
-                          {logDate && (
-                            <p className="text-xs opacity-90">
-                              {logDate.toLocaleDateString('en-US', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              })}
-                            </p>
-                          )}
-                        </div>
-                        <div className="p-3">
-                          <CalendarPicker
-                            mode="single"
-                            selected={logDate}
-                            onSelect={(date) => {
-                              setLogDate(date);
-                              setShowCalendar(false);
-                            }}
-                            className="w-auto"
-                            initialFocus
-                          />
-                        </div>
-                        <div className="bg-gray-50 px-3 py-2 flex justify-between items-center">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setLogDate(new Date());
-                              setShowCalendar(false);
-                            }}
-                            className="text-xs text-green-600 hover:text-green-700"
-                          >
-                            Today
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowCalendar(false)}
-                            className="text-xs"
-                          >
-                            Close
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    {/* calendar popup removed */}
                   </div>
                   <div className="space-y-2">
                     <Label className="text-gray-700 font-medium">Time</Label>
-                    <Select value={logTime} onValueChange={setLogTime}>
-                      <SelectTrigger className="h-12 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 bg-white text-gray-900">
-                        <SelectValue placeholder="Select time" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-gray-300 shadow-lg">
-                        {[
-                          "06:00",
-                          "07:00",
-                          "08:00",
-                          "09:00",
-                          "10:00",
-                          "11:00",
-                          "12:00",
-                          "13:00",
-                          "14:00",
-                          "15:00",
-                          "16:00",
-                          "17:00",
-                          "18:00",
-                          "19:00",
-                          "20:00"
-                        ].map((time) => (
-                          <SelectItem key={time} value={time} className="text-gray-900 hover:bg-green-50">
-                            {time}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <Input
+                        type="time"
+                        value={formData.time}
+                        onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                        className="h-12 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 bg-white text-gray-900"
+                      />
                   </div>
                 </div>
 
@@ -1204,6 +1198,7 @@ export function TrackWasteScreen() {
                       value={formData.locationAddress}
                       onChange={(e) => {
                         setFormData({ ...formData, locationAddress: e.target.value });
+                        setAddressFromGps(false);
                         if (fieldErrors.locationAddress) {
                           setFieldErrors({ ...fieldErrors, locationAddress: undefined });
                         }

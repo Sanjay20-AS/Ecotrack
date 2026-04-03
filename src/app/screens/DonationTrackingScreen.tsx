@@ -10,6 +10,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { wasteAPI } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 interface WasteEntry {
   id: number;
@@ -140,38 +141,7 @@ export function DonationTrackingScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">My Donations</h1>
-            <p className="text-sm opacity-90 mt-1">
-              {activeDonations.length} active · {completedDonations.length} completed
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-primary-foreground hover:bg-primary-foreground/20"
-            onClick={() => loadDonations(true)}
-            disabled={manualRefreshing}
-          >
-            <RefreshCw className={`h-5 w-5 ${manualRefreshing ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
-        <div className="flex items-center gap-2 mt-3 text-xs opacity-80">
-          <div className={`h-2 w-2 rounded-full ${isPolling ? "bg-green-400 animate-pulse" : "bg-gray-400"}`} />
-          <span>
-            {isPolling ? "Live tracking" : "Paused"} · Updated {getTimeSince(lastRefreshed.toISOString())}
-          </span>
-          <button
-            className="ml-auto underline text-xs opacity-90"
-            onClick={() => setIsPolling(!isPolling)}
-          >
-            {isPolling ? "Pause" : "Resume"}
-          </button>
-        </div>
-      </div>
+      <TopBar variant="banner" title="My Donations" subtitle={`${activeDonations.length} active · ${completedDonations.length} completed`} />
 
       <div className="px-6 py-5 space-y-5">
         {donations.length === 0 ? (

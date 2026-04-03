@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
 import L from "leaflet";
+// User marker image (built into source so Vite can serve it)
+const userMarkerUrl = new URL("../assets/logo-marker.svg", import.meta.url).href;
 import "leaflet/dist/leaflet.css";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -14,6 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "../components/ui/dialog";
 import { wasteAPI, facilityAPI, userAPI, uploadAPI, ApiError } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 interface WasteEntry {
   id: number;
@@ -87,6 +90,7 @@ export function CollectorRoutesScreen() {
       setPendingWaste(pending);
       setInProgressWaste(inProgress);
       setFacilities(facs);
+      // loaded inProgressWaste
     } catch (err) {
       console.error("Route data load error:", err);
     } finally {
@@ -114,9 +118,18 @@ export function CollectorRoutesScreen() {
       return;
     }
     const start = userLocation ?? { lat: 11.0168, lng: 76.9558 };
-    setOptimizedRoute(nearestNeighbor(picks, start.lat, start.lng));
+    // Build an initial route using nearest-neighbor, then improve it with 2-opt
+    const initial = nearestNeighbor(picks, start.lat, start.lng);
+    const initialExact = totalRouteKm(initial, start.lat, start.lng);
+    const improved = twoOptImprove(initial, start.lat, start.lng);
+    const improvedExact = totalRouteKm(improved, start.lat, start.lng);
+    // Round for display, but compute saved from full-precision values to avoid small diffs vanishing
+    const initialKm = Math.round(initialExact * 100) / 100;
+    const improvedKm = Math.round(improvedExact * 100) / 100;
+    setOptimizedRoute(improved);
     setIsOptimized(true);
-    toast.success(`Route optimized — ${picks.length} stops`);
+    const saved = Math.max(0, Math.round((initialExact - improvedExact) * 100) / 100);
+    toast.success(`Route optimized — ${picks.length} stops · ${improvedKm} km (${saved} km saved)`);
   };
 
   const handleClaim = async (wasteId: number) => {
@@ -197,9 +210,11 @@ export function CollectorRoutesScreen() {
   };
 
   // All pickups with valid coordinates
-  const allPickups = [...inProgressWaste, ...pendingWaste].filter(
-    (w) => w.locationLatitude && w.locationLongitude
-  );
+  const hasValidCoords = (w: WasteEntry) =>
+    w.locationLatitude !== undefined && w.locationLatitude !== null && w.locationLongitude !== undefined && w.locationLongitude !== null &&
+    !isNaN(Number(w.locationLatitude)) && !isNaN(Number(w.locationLongitude));
+
+  const allPickups = [...inProgressWaste, ...pendingWaste].filter((w) => hasValidCoords(w));
 
   // Route display order (optimized or natural)
   const displayRoute = isOptimized ? optimizedRoute : allPickups;
@@ -217,17 +232,82 @@ export function CollectorRoutesScreen() {
     ? [[startPt.lat, startPt.lng], ...displayRoute.map((w) => [w.locationLatitude!, w.locationLongitude!] as [number, number])]
     : [];
 
+  // Ensure pickups in progress are always shown on the map (even if not in the current display list)
+  const visiblePickups = (() => {
+    const base = (isOptimized ? optimizedRoute.slice() : allPickups.slice());
+    const inProg = inProgressWaste.filter((w) => hasValidCoords(w));
+    for (const p of inProg) {
+      if (!base.find((b) => b.id === p.id)) {
+        // put in-progress pickups at the front so they're visible
+        base.unshift(p);
+      }
+    }
+    return base;
+  })();
+
+  // If multiple pickups share the exact same coordinates, apply a small radial offset
+  // so markers don't completely overlap. Offsets are deterministic based on index.
+  const adjustedPositions = (() => {
+    const groups: Record<string, WasteEntry[]> = {};
+    for (const p of visiblePickups) {
+      const key = `${p.locationLatitude},${p.locationLongitude}`;
+      groups[key] = groups[key] || [];
+      groups[key].push(p);
+    }
+    const posMap: Record<number, [number, number]> = {};
+    for (const key of Object.keys(groups)) {
+      const group = groups[key];
+      if (group.length === 1) {
+        const p = group[0];
+        posMap[p.id] = [p.locationLatitude!, p.locationLongitude!];
+        continue;
+      }
+      const baseLat = group[0].locationLatitude!;
+      const baseLng = group[0].locationLongitude!;
+      const radiusDeg = 0.00012; // ~13m, small offset
+      for (let i = 0; i < group.length; i++) {
+        const angle = (2 * Math.PI * i) / group.length;
+        const dLat = Math.cos(angle) * radiusDeg;
+        const dLng = Math.sin(angle) * radiusDeg / Math.cos((baseLat * Math.PI) / 180);
+        posMap[group[i].id] = [baseLat + dLat, baseLng + dLng];
+      }
+    }
+    return posMap;
+  })();
+
   // Route stats
   const estDistanceKm = displayRoute.length > 0
     ? Math.round(totalRouteKm(displayRoute, startPt.lat, startPt.lng) * 10) / 10
     : 0;
   const etaMinutes = Math.round(estDistanceKm * 3); // ~20 km/h avg speed
 
-  // Numbered marker icon for optimized route
-  const createNumberedIcon = (num: number, status: string) => {
-    const bg = status === "IN_PROGRESS" ? "#2563eb" : "#f59e0b";
+  // Numbered marker icon for optimized route (colored by pickup type)
+  const createNumberedIcon = (num: number, pickup: WasteEntry) => {
+    const t = (pickup.type || "").toUpperCase();
+    const color = t.includes("E-WASTE") || t.includes("EWASTE") ? "#EF4444" // red for E-waste
+      : t.includes("FOOD") ? "#22C55E" // green for food
+      : "#2563eb"; // default blue
+    const label = `${pickup.type} ${typeof pickup.quantity === 'number' ? (Math.round(pickup.quantity*10)/10) : pickup.quantity}kg`;
     return L.divIcon({
-      html: `<div style="background:${bg};color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 3px 8px ${bg}80;border:3px solid white;">${num}</div>`,
+      html: `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;">
+          <div style="background:${color};color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;">${num}</div>
+          <div style="margin-top:4px;font-size:11px;color:#064e3b;font-weight:600;text-align:center;white-space:nowrap;">${label}</div>
+        </div>
+      `,
+      className: "custom-marker-icon",
+      iconSize: [32, 44],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -22],
+    });
+  };
+
+  // Marker icons (non-optimized display: compact 32px markers)
+  const createPickupIcon = (status: string, type: string) => {
+    const color = status === "IN_PROGRESS" ? "#2563eb" : "#f59e0b";
+    const emoji = type === "E-WASTE" ? "⚡" : type === "FOOD" ? "🍽️" : "♻️";
+    return L.divIcon({
+      html: `<div style="background:${color};color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;font-weight:700;">${emoji}</div>`,
       className: "custom-marker-icon",
       iconSize: [32, 32],
       iconAnchor: [16, 16],
@@ -235,41 +315,75 @@ export function CollectorRoutesScreen() {
     });
   };
 
-  // Marker icons
-  const createPickupIcon = (status: string, type: string) => {
-    const color = status === "IN_PROGRESS" ? "#2563eb" : "#f59e0b";
-    const emoji = type === "E-WASTE" ? "⚡" : type === "FOOD" ? "🍽️" : "♻️";
+  // Special marker for pickups that are currently in progress
+  const createInProgressIcon = (pickup: WasteEntry, num?: number, isOptimized?: boolean) => {
+    const label = `${pickup.type} ${typeof pickup.quantity === 'number' ? (Math.round(pickup.quantity*10)/10) : pickup.quantity}kg`;
+    const inner = (isOptimized && typeof num === 'number' && num > 0) ? String(num) : '🚛';
     return L.divIcon({
-      html: `<div style="background:${color};color:white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 8px ${color}80;border:3px solid white;">${emoji}</div>`,
+      html: `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;">
+          <style>@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }</style>
+          <div style="position:relative;width:42px;height:42px;display:flex;align-items:center;justify-content:center;">
+            <div style="position:absolute;width:42px;height:42px;border-radius:50%;background:rgba(37,99,235,0.12);border:2px solid rgba(37,99,235,0.2);animation: pulse 1.6s infinite;"></div>
+            <div style="position:relative;width:34px;height:34px;border-radius:50%;background:#2563eb;color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;border:2px solid white;box-shadow:0 4px 10px rgba(37,99,235,0.25);">${inner}</div>
+          </div>
+          <div style="margin-top:4px;font-size:11px;color:#0f172a;font-weight:600;text-align:center;white-space:nowrap;">${label}</div>
+        </div>
+      `,
       className: "custom-marker-icon",
-      iconSize: [36, 36],
-      iconAnchor: [18, 18],
-      popupAnchor: [0, -18],
+      iconSize: [42, 52],
+      iconAnchor: [21, 21],
+      popupAnchor: [0, -30],
     });
   };
 
   const facilityIcon = (type: string) => {
+    const t = (type || "").toUpperCase();
     const colors: Record<string, string> = {
       EWASTE: "#059669",
-      COMPOST: "#059669",
-      FOOD: "#ea580c",
+      COMPOST: "#10B981",
+      FOOD: "#EA580C",
+      RECYCLING: "#0EA5A4",
+      DEFAULT: "#6B7280",
     };
-    const bg = colors[type?.toUpperCase()] || "#6b7280";
+    const bg = colors[t] || colors.DEFAULT;
+    // Choose a distinct emoji/symbol per facility type for easier scanning
+    const emoji = t.includes("EWASTE") || t.includes("E-WASTE") ? "🔌"
+      : t.includes("FOOD") ? "🍽️"
+      : t.includes("COMPOST") ? "🍃"
+      : t.includes("RECYCL") ? "♻️"
+      : "🏭";
     return L.divIcon({
-      html: `<div style="background:${bg};color:white;border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px ${bg}60;border:2px solid white;">🏭</div>`,
+      html: `<div style="background:${bg};color:white;border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 6px ${bg}60;border:2px solid white;">${emoji}</div>`,
       className: "custom-marker-icon",
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
-      popupAnchor: [0, -14],
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      popupAnchor: [0, -15],
     });
   };
 
   const userIcon = L.divIcon({
-    html: `<div style="background:#3b82f6;border-radius:50%;width:18px;height:18px;border:4px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.6);"></div>`,
-    className: "custom-marker-icon",
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    className: "collector-location-icon",
+    html: `
+      <div style="position:relative;width:64px;height:64px;display:flex;align-items:center;justify-content:center;flex-direction:column">
+        <style>
+          @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
+          .collector-marker-ring { position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(16,185,129,0.15);border:2px solid rgba(16,185,129,0.25); animation: pulse 1.8s infinite; }
+          .collector-marker-inner { position:relative;width:34px;height:34px;border-radius:50%;background:#10B981;color:white;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid white;box-shadow:0 4px 10px rgba(16,185,129,0.35); }
+          .collector-marker-label { margin-top:6px;font-size:11px;color:#065f46;font-weight:600;text-align:center;text-shadow:0 1px 0 rgba(255,255,255,0.6); }
+        </style>
+        <div class="collector-marker-ring"></div>
+        <div class="collector-marker-inner">👤</div>
+        <div class="collector-marker-label">You are here</div>
+      </div>
+    `,
+    iconSize: [64, 64],
+    iconAnchor: [32, 32],
+    popupAnchor: [0, -40],
   });
+
+  // Find pickups that lack GPS coordinates so we can surface them to the user
+  const pickupsMissingCoords = [...inProgressWaste, ...pendingWaste].filter((w) => !hasValidCoords(w));
 
   if (loading) {
     return (
@@ -284,13 +398,7 @@ export function CollectorRoutesScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold">Collection Routes</h1>
-        <p className="text-sm opacity-90 mt-1">
-          {inProgressWaste.length} active · {pendingWaste.length} pending pickups
-        </p>
-      </div>
+      <TopBar variant="banner" title="Collection Routes" subtitle={`${inProgressWaste.length} active · ${pendingWaste.length} pending pickups`} />
 
       <div className="px-6 py-5 space-y-4">
         {/* Route Summary */}
@@ -347,6 +455,24 @@ export function CollectorRoutesScreen() {
           </Card>
         )}
 
+        {pickupsMissingCoords.length > 0 && (
+          <Card className="p-3 border-2 bg-yellow-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">{pickupsMissingCoords.length} pickup(s) missing GPS</p>
+                <p className="text-xs text-muted-foreground">Some active pickups don't have location coordinates and won't appear on the map.</p>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {pickupsMissingCoords.slice(0,3).map(p => (
+                  <div key={p.id}>{p.type} — {p.quantity}kg</div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
+
+        
+
         {/* Toggle facilities */}
         <div className="flex items-center gap-2">
           <Button
@@ -394,26 +520,33 @@ export function CollectorRoutesScreen() {
               )}
 
               {/* Pickup markers */}
-              {(isOptimized ? displayRoute : allPickups).map((pickup, idx) => (
-                <Marker
-                  key={pickup.id}
-                  position={[pickup.locationLatitude!, pickup.locationLongitude!]}
-                  icon={isOptimized ? createNumberedIcon(idx + 1, pickup.status) : createPickupIcon(pickup.status, pickup.type)}
-                  eventHandlers={{
-                    click: () => setSelectedPickup(pickup),
-                  }}
-                >
-                  <Popup>
-                    <div className="text-sm">
-                      <strong>{pickup.type}</strong> — {pickup.quantity} kg
-                      <br />
-                      <span className="text-xs">{pickup.description}</span>
-                      <br />
-                      <Badge className="mt-1 text-xs">{pickup.status}</Badge>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+              {visiblePickups.map((pickup, idx) => {
+                // compute the displayed number when optimized (use optimizedRoute order)
+                const num = isOptimized ? (optimizedRoute.findIndex((r) => r.id === pickup.id) + 1) : idx + 1;
+                // ensure IN_PROGRESS pickups use a clearly visible marker
+                const markerIcon = pickup.status === "IN_PROGRESS"
+                  ? createInProgressIcon(pickup, num, isOptimized)
+                  : (isOptimized ? createNumberedIcon(num, pickup) : createPickupIcon(pickup.status, pickup.type));
+                return (
+                  <Marker
+                    key={pickup.id}
+                    position={adjustedPositions[pickup.id] || [pickup.locationLatitude!, pickup.locationLongitude!]}
+                    icon={markerIcon}
+                    zIndexOffset={pickup.status === "IN_PROGRESS" ? 1000 : 0}
+                    eventHandlers={{ click: () => setSelectedPickup(pickup) }}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <strong>{pickup.type}</strong> — {pickup.quantity} kg
+                        <br />
+                        <span className="text-xs">{pickup.description}</span>
+                        <br />
+                        <Badge className="mt-1 text-xs">{pickup.status}</Badge>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
 
               {/* Facility markers */}
               {showFacilities &&
@@ -591,6 +724,7 @@ export function CollectorRoutesScreen() {
                           <p className="text-xs text-muted-foreground truncate mt-0.5">
                             {entry.locationAddress || entry.description}
                           </p>
+                          <p className="text-xs text-muted-foreground mt-0.5 font-mono">{entry.locationLatitude ?? '—'}, {entry.locationLongitude ?? '—'}</p>
                           {isOptimized && distKm !== null && (
                             <p className="text-xs text-primary mt-0.5 flex items-center gap-1">
                               <RouteIcon className="h-3 w-3" />
@@ -697,6 +831,38 @@ function nearestNeighbor(pickups: WasteEntry[], startLat: number, startLng: numb
     curLng = next.locationLongitude!;
   }
   return route;
+}
+
+// 2-opt local improvement: repeatedly try swapping two edges to reduce route length
+function twoOptImprove(route: WasteEntry[], startLat: number, startLng: number): WasteEntry[] {
+  if (route.length < 3) return route;
+  let improved = true;
+  let bestRoute = [...route];
+  let bestDist = totalRouteKm(bestRoute, startLat, startLng);
+  while (improved) {
+    improved = false;
+    for (let i = 0; i < bestRoute.length - 1; i++) {
+      for (let k = i + 1; k < bestRoute.length; k++) {
+        const newRoute = twoOptSwap(bestRoute, i, k);
+        const newDist = totalRouteKm(newRoute, startLat, startLng);
+        if (newDist + 1e-6 < bestDist) {
+          bestRoute = newRoute;
+          bestDist = newDist;
+          improved = true;
+          break;
+        }
+      }
+      if (improved) break;
+    }
+  }
+  return bestRoute;
+}
+
+function twoOptSwap(route: WasteEntry[], i: number, k: number): WasteEntry[] {
+  const newRoute = route.slice(0, i)
+    .concat(route.slice(i, k + 1).reverse())
+    .concat(route.slice(k + 1));
+  return newRoute;
 }
 
 function totalRouteKm(pickups: WasteEntry[], startLat: number, startLng: number): number {

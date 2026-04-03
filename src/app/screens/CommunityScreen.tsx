@@ -9,6 +9,7 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
 import { communityAPI, userAPI } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 type DetailTab = "members" | "leaderboard";
 
@@ -349,11 +350,7 @@ export function CommunityScreen() {
   if (!userCommunity) {
     return (
       <div className="min-h-screen bg-background pb-6">
-        {/* Header */}
-        <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-          <h1 className="text-2xl font-bold">Join a Community</h1>
-          <p className="text-sm opacity-90 mt-1">Connect with like-minded eco warriors</p>
-        </div>
+        <TopBar variant="compact" title="Community" subtitle="Connect with like-minded eco warriors" />
 
         <div className="px-6 py-6 space-y-6">
           {/* Error/Success Messages */}
@@ -523,32 +520,7 @@ export function CommunityScreen() {
   // If user has a community, show community dashboard
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">{userCommunity.name}</h1>
-            <p className="text-sm opacity-90 mt-1">{userCommunity.description}</p>
-            <div className="flex items-center gap-6 mt-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                <span>{communityStats?.memberCount || 0} Members</span>
-              </div>
-              <Badge variant="secondary" className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
-                {userCommunity.category}
-              </Badge>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLeaveCommunity}
-            className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/30"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <TopBar variant="banner" title={userCommunity.name} subtitle={userCommunity.description} />
 
       <div className="px-6 py-6 space-y-6">
         {/* Error/Success Messages */}

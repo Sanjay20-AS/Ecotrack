@@ -67,6 +67,9 @@ public class WasteTrackingController {
     private NotificationService notificationService;
 
     @Autowired
+    private com.ecotrack.backend.service.CarbonFootprintService carbonFootprintService;
+
+    @Autowired
     private WasteClassificationRepository wasteClassificationRepository;
 
     @Value("${groq.api.key}")
@@ -84,8 +87,18 @@ public class WasteTrackingController {
     }
 
     @GetMapping("/user/{userId}")
-    public List<Waste> getWasteByUserId(@PathVariable Long userId) {
-        return wasteRepository.findByUserId(userId);
+    public ResponseEntity<?> getWasteByUserId(@PathVariable Long userId) {
+        try {
+            List<Waste> wastes = wasteRepository.findByUserId(userId);
+            return ResponseEntity.ok(wastes);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Failed to fetch waste entries for user",
+                    "userId", userId,
+                    "details", ex.getMessage()
+            ));
+        }
     }
 
     @GetMapping("/type/{type}")
@@ -346,6 +359,17 @@ public class WasteTrackingController {
                 String collectorName = currentUser != null ? currentUser.getName() : "A collector";
                 notificationService.notifyDonorPickupCompleted(
                         saved.getUser(), saved.getType(), collectorName);
+            }
+
+            // Update carbon calculations for this waste and user's summary
+            try {
+                carbonFootprintService.calculateCarbonForWaste(saved);
+                if (saved.getUser() != null) {
+                    carbonFootprintService.updateUserCarbonSummary(saved.getUser().getId());
+                }
+            } catch (Exception ex) {
+                // Do not block the response if carbon service fails; just log
+                ex.printStackTrace();
             }
 
             return ResponseEntity.ok(saved);

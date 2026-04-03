@@ -11,6 +11,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { marketplaceAPI } from "../services/apiService";
 import toast from "react-hot-toast";
+import TopBar from "../components/TopBar";
 
 const CATEGORIES = ["ALL", "ELECTRONICS", "FURNITURE", "CLOTHING", "BOOKS", "APPLIANCES", "OTHER"];
 const CONDITIONS = ["WORKING", "GOOD", "FAIR", "POOR"];
@@ -185,11 +186,7 @@ export function MarketplaceScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <div className="bg-secondary text-secondary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold">Resource Marketplace</h1>
-        <p className="text-sm opacity-90 mt-1">Share, donate, or swap reusable items</p>
-      </div>
+      <TopBar variant="banner" title="Marketplace" subtitle="Share, donate, or swap reusable items" />
 
       <div className="px-6 py-6 space-y-4">
         {/* Search */}

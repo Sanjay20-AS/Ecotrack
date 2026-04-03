@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { MapPin, Navigation, Phone, Clock, Filter, Map as MapIcon, Locate, Route, Zap, Leaf } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Card } from "../components/ui/card";
@@ -9,6 +9,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { facilityAPI } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 interface Facility {
   id: number;
@@ -161,11 +162,7 @@ export function LocationsScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold">Disposal Locations</h1>
-        <p className="text-sm opacity-90 mt-1">Find recycling centers near you</p>
-      </div>
+      <TopBar variant="banner" title="Disposal Locations" subtitle="Find recycling centers near you" />
 
       <div className="px-6 py-6 space-y-4">
         {/* Header info */}
@@ -268,77 +265,16 @@ export function LocationsScreen() {
         {viewMode === "map" && (
           <div className="space-y-4">
             {/* Interactive Map */}
-            <div className="h-96 border-4 border-primary shadow-xl rounded-lg overflow-hidden">
-              <MapContainer
+            <div className="h-96 overflow-hidden relative" style={{ borderRadius: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.15)' }}>
+              <MemoizedLocationsMap
                 center={userLocation ? [userLocation.lat, userLocation.lng] : [11.0168, 76.9558]}
                 zoom={12}
-                style={{ height: '100%', width: '100%' }}
-                zoomControl={true}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                
-                {/* User Location Marker */}
-                {userLocation && (
-                  <Marker 
-                    position={[userLocation.lat, userLocation.lng]}
-                    icon={L.divIcon({
-                      html: '<div style="background: #2563eb; color: white; border-radius: 50%; padding: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 3px solid white;">📍</div>',
-                      className: 'user-location-icon',
-                      iconSize: [24, 24],
-                      iconAnchor: [12, 12]
-                    })}
-                  >
-                    <Popup>
-                      <div className="text-center font-semibold">📍 You are here</div>
-                    </Popup>
-                  </Marker>
-                )}
-
-                {/* Facility Markers */}
-                {filteredLocations.map((location: Facility) => (
-                  <Marker 
-                    key={location.id}
-                    position={[location.latitude, location.longitude]} 
-                    icon={getLocationIcon(location.type)}
-                    eventHandlers={{
-                      click: () => setSelectedLocation(location)
-                    }}
-                  >
-                    <Popup>
-                      <div className="space-y-2 min-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          {getLocationIconComponent(location.type)}
-                          <h3 className="font-semibold">{location.name}</h3>
-                        </div>
-                        <div className="text-xs bg-primary/10 px-2 py-1 rounded">{location.type}</div>
-                        {location.address && (
-                          <div className="flex items-start gap-2 text-sm">
-                            <MapPin className="h-3 w-3 mt-0.5" />
-                            <span>{location.address}</span>
-                          </div>
-                        )}
-                        {location.phoneNumber && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-3 w-3" />
-                            <a href={`tel:${location.phoneNumber}`} className="text-blue-600 hover:underline">
-                              {location.phoneNumber}
-                            </a>
-                          </div>
-                        )}
-                        {location.operatingHours && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Clock className="h-3 w-3" />
-                            <span>{location.operatingHours}</span>
-                          </div>
-                        )}
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
+                userLocation={userLocation}
+                filteredLocations={filteredLocations}
+                onSelectLocation={(l: Facility) => setSelectedLocation(l)}
+                getLocationIcon={getLocationIcon}
+                getLocationIconComponent={getLocationIconComponent}
+              />
             </div>
 
             {/* Map Stats & Legend */}
@@ -500,3 +436,121 @@ export function LocationsScreen() {
     </div>
   );
 }
+
+// ---------------- Locations Map (memoized) -------------------------------
+type LocationsMapProps = {
+  center: [number, number];
+  zoom: number;
+  userLocation: { lat: number; lng: number } | null;
+  filteredLocations: Facility[];
+  onSelectLocation: (l: Facility) => void;
+  getLocationIcon: (t: string) => L.DivIcon;
+  getLocationIconComponent: (t: string) => JSX.Element;
+};
+
+function LocationsMapInner({ center, zoom, userLocation, filteredLocations, onSelectLocation, getLocationIcon }: LocationsMapProps) {
+  const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
+  const [tileLoading, setTileLoading] = useState(true);
+
+  function BoundsListener() {
+    const map = (useMapEvents as any)({
+      moveend() {
+        setMapBounds((map as L.Map).getBounds());
+      }
+    });
+    return null;
+  }
+
+  const visible = useMemo(() => {
+    if (!mapBounds) return filteredLocations;
+    return filteredLocations.filter((f) => mapBounds.contains(L.latLng(f.latitude, f.longitude)));
+  }, [filteredLocations, mapBounds]);
+
+  return (
+    <div className="h-96 border-4 border-primary shadow-xl rounded-lg overflow-hidden relative">
+      <MapContainer center={center} zoom={zoom} style={{ height: '100%', width: '100%' }} zoomControl={true}>
+        <TileLayer
+          attribution={'&copy; OpenStreetMap contributors'}
+          url={'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
+          updateWhenIdle={true}
+          updateWhenZooming={false}
+          eventHandlers={{ loading: () => setTileLoading(true), load: () => setTileLoading(false) }}
+        />
+        <BoundsListener />
+
+        {userLocation && (
+          <Marker
+            position={[userLocation.lat, userLocation.lng]}
+            icon={L.divIcon({
+              html: `
+                <div style="position: relative; width: 40px; height: 40px;">
+                  <div style="
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 50%;
+                    background: rgba(34, 197, 94, 0.3);
+                    animation: pulse 1.5s ease-out infinite;
+                  "></div>
+                  <div style="
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 40px;
+                    height: 40px;
+                    background: #22c55e;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    z-index: 1;
+                  ">👤</div>
+                </div>
+                <style>
+                  @keyframes pulse {
+                    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+                    100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+                  }
+                </style>
+              `,
+              className: '',
+              iconSize: [40, 40],
+              iconAnchor: [20, 20],
+              popupAnchor: [0, -20]
+            })}
+          >
+            <Popup><div className="text-center font-semibold">You are here</div></Popup>
+          </Marker>
+        )}
+
+        {visible.map((location) => (
+          <Marker key={location.id} position={[location.latitude, location.longitude]} icon={getLocationIcon(location.type)} eventHandlers={{ click: () => onSelectLocation(location) }}>
+            <Popup>
+              <div className="space-y-2 min-w-[200px]">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">{location.name}</h3>
+                </div>
+                <div className="text-xs bg-primary/10 px-2 py-1 rounded">{location.type}</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+
+      {tileLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+          <div className="text-sm font-medium">Loading map...</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const MemoizedLocationsMap = React.memo(LocationsMapInner);

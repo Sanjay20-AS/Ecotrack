@@ -64,6 +64,15 @@ public class Waste {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
 
+    @Column(name = "carbon_generated")
+    private Double carbonGenerated = 0.0;
+
+    @Column(name = "carbon_saved")
+    private Double carbonSaved = 0.0;
+
+    @Column(name = "carbon_score")
+    private Integer carbonScore = 0;
+
     public Waste() {}
 
     public Waste(User user, String type, double quantity, String description) {
@@ -169,6 +178,30 @@ public class Waste {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Double getCarbonGenerated() {
+        return carbonGenerated;
+    }
+
+    public void setCarbonGenerated(Double carbonGenerated) {
+        this.carbonGenerated = carbonGenerated;
+    }
+
+    public Double getCarbonSaved() {
+        return carbonSaved;
+    }
+
+    public void setCarbonSaved(Double carbonSaved) {
+        this.carbonSaved = carbonSaved;
+    }
+
+    public Integer getCarbonScore() {
+        return carbonScore;
+    }
+
+    public void setCarbonScore(Integer carbonScore) {
+        this.carbonScore = carbonScore;
     }
 
     public User getCollectedBy() {

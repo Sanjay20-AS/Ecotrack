@@ -5,6 +5,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { educationAPI } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 const CATEGORIES = ["ALL", "WASTE_MANAGEMENT", "RECYCLING", "COMPOSTING", "E-WASTE", "TIPS"];
 const CATEGORY_LABELS: Record<string, string> = {
@@ -60,6 +61,19 @@ export function EducationScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Fix known-broken seeded URLs (runtime mapping for already-seeded DB entries)
+  useEffect(() => {
+    if (!articles || articles.length === 0) return;
+    const fixed = articles.map(a => {
+      if (a.thumbnailUrl && a.thumbnailUrl.includes('photo-1542601906897-ecd432fcfb7d')) {
+        return { ...a, thumbnailUrl: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800' };
+      }
+      return a;
+    });
+    // Only update if any change
+    if (JSON.stringify(fixed) !== JSON.stringify(articles)) setArticles(fixed);
+  }, [articles]);
+
   const handleExpand = async (article: Article) => {
     if (expandedId === article.id) {
       setExpandedId(null);
@@ -81,7 +95,14 @@ export function EducationScreen() {
       <div className="flex gap-4 p-4">
         <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
           {article.thumbnailUrl ? (
-            <img src={article.thumbnailUrl} alt={article.title} className="w-full h-full object-cover" />
+            <img
+              src={article.thumbnailUrl}
+              alt={article.title}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              crossOrigin="anonymous"
+              onError={(e: any) => { e.currentTarget.onerror = null; e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-size="20">Image unavailable</text></svg>'; }}
+            />
           ) : article.videoUrl ? (
             <Video className="h-7 w-7 text-muted-foreground" />
           ) : (
@@ -111,7 +132,14 @@ export function EducationScreen() {
         <div className="px-4 pb-4 border-t border-border">
           {article.thumbnailUrl && (
             <div className="my-3 rounded-lg overflow-hidden aspect-video bg-muted">
-              <img src={article.thumbnailUrl} alt={article.title} className="w-full h-full object-cover" />
+              <img
+                src={article.thumbnailUrl}
+                alt={article.title}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                crossOrigin="anonymous"
+                onError={(e: any) => { e.currentTarget.onerror = null; e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-size="24">Image unavailable</text></svg>'; }}
+              />
             </div>
           )}
           {article.videoUrl && (
@@ -133,11 +161,7 @@ export function EducationScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold">Education & Tips</h1>
-        <p className="text-sm opacity-90 mt-1">Learn about sustainable practices</p>
-      </div>
+      <TopBar variant="banner" title="Learn & Educate" subtitle="Learn about sustainable practices" />
 
       <div className="px-6 py-6 space-y-6">
         {/* Search */}

@@ -30,6 +30,7 @@ import { CollectorRoutesScreen } from "./screens/CollectorRoutesScreen";
 import { CollectorHistoryScreen } from "./screens/CollectorHistoryScreen";
 import { DonationTrackingScreen } from "./screens/DonationTrackingScreen";
 import { RewardsScreen } from "./screens/RewardsScreen";
+import CarbonFootprintScreen from "./screens/CarbonFootprintScreen";
 
 export const router = createBrowserRouter([
   {
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
       { path: "locations", Component: LocationsScreen },
       { path: "my-donations", Component: DonationTrackingScreen },
       { path: "rewards", Component: RewardsScreen },
+      { path: "carbon", Component: CarbonFootprintScreen },
       // Collector routes
       { path: "collector-dashboard", Component: CollectorDashboardScreen },
       { path: "pickups", Component: CollectorPickupsScreen },

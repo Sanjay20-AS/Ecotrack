@@ -7,6 +7,7 @@ import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { wasteAPI } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 interface WasteEntry {
   id: number;
@@ -89,13 +90,7 @@ export function CollectorHistoryScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold">Pickup History</h1>
-        <p className="text-sm opacity-90 mt-1">
-          {history.length} completed · {totalKg.toFixed(1)} kg collected
-        </p>
-      </div>
+      <TopBar variant="banner" title="Pickup History" subtitle={`${history.length} completed · ${totalKg.toFixed(1)} kg collected`} />
 
       <div className="px-6 py-5 space-y-4">
         {/* Summary Stats */}

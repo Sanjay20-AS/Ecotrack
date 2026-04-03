@@ -10,6 +10,7 @@ import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
 import { wasteAPI, wastePriorityAPI, userAPI } from "../services/apiService";
 import toast from "react-hot-toast";
+import TopBar from "../components/TopBar";
 
 interface WasteEntry {
   id: number;
@@ -155,31 +156,7 @@ export function CollectorDashboardScreen() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-8 rounded-b-3xl">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <p className="text-sm opacity-90">Good {getGreeting()},</p>
-            <h1 className="text-2xl font-bold">{user?.name || "Collector"}</h1>
-            <p className="text-xs opacity-80 mt-0.5">🚛 Waste Collection Dashboard</p>
-          </div>
-          <div className="w-12 h-12 bg-primary-foreground/20 rounded-full flex items-center justify-center">
-            <Truck className="h-6 w-6" />
-          </div>
-        </div>
-
-        {/* Daily Goal Card */}
-        <Card className="bg-card/95 backdrop-blur p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-foreground font-medium">Daily Collection Goal</span>
-            <span className="text-sm font-bold text-foreground">{goalPercent}%</span>
-          </div>
-          <Progress value={goalPercent} className="h-2.5 mb-2" />
-          <p className="text-xs text-muted-foreground">
-            {stats?.todayKg?.toFixed(1) || "0"} of {DAILY_GOAL_KG} kg collected today
-          </p>
-        </Card>
-      </div>
+      <TopBar variant="banner" title={user?.name ? `${user.name}` : "Collector"} subtitle={`Good ${getGreeting()} · Waste Collection Dashboard`} />
 
       <div className="px-6 py-6 space-y-6">
         {/* Account Status Warning */}
@@ -279,16 +256,28 @@ export function CollectorDashboardScreen() {
         </div>
 
         {/* CO2 Impact */}
-        {stats && stats.co2Saved > 0 && (
+        {stats && (
           <Card className="bg-green-50 border-green-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Leaf className="h-5 w-5 text-green-600" />
+            <div className="flex items-center gap-3 justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Leaf className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-800">Carbon Contribution</h3>
+                  <p className="text-sm text-green-600">Impact from your collections</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-green-800">CO₂ Impact</h3>
-                <p className="text-lg font-bold text-green-700">{stats.co2Saved.toFixed(1)} kg CO₂ saved</p>
-                <p className="text-xs text-green-600">By collecting and recycling waste</p>
+
+              <div className="flex items-center gap-6">
+                <div className="text-right">
+                  <div className="text-sm text-muted-foreground">Total CO₂ helped</div>
+                  <div className="text-lg font-bold text-green-700">{(stats.co2Saved || 0).toFixed(1)} kg</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-muted-foreground">Completed pickups</div>
+                  <div className="text-lg font-bold text-green-700">{stats.totalPickups || 0}</div>
+                </div>
               </div>
             </div>
           </Card>

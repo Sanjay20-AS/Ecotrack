@@ -10,6 +10,7 @@ import { Label } from "../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import toast from "react-hot-toast";
 import { userAPI, wasteAPI } from "../services/apiService";
+import TopBar from "../components/TopBar";
 
 export function ProfileScreen() {
   const navigate = useNavigate();
@@ -143,30 +144,33 @@ export function ProfileScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-12 pb-8 rounded-b-3xl">
-        <div className="flex items-center gap-4 mb-6">
-          <Avatar className="w-20 h-20">
-            <AvatarFallback className="bg-primary-foreground text-primary text-2xl">
-              {user?.name?.substring(0, 2).toUpperCase() || "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">{user?.name || "User"}</h1>
-            <p className="text-sm opacity-90">{user?.email || ""}</p>
-            <div className="flex gap-2 mt-2">
-              <Badge className="bg-primary-foreground text-primary">Level 5 Eco Champion</Badge>
-              <Badge variant="outline" className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
-                {user?.role === 'DONOR' ? '🎁 Donor' : user?.role === 'COLLECTOR' ? '🚛 Collector' : '👤 User'}
-              </Badge>
-            </div>
-            {user?.community && (
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
-                  🏘️ {user.community.name}
+      <TopBar variant="banner" title="My Profile" />
+
+      <div className="px-6 pt-4 pb-4">
+        <div className="bg-[#F1F8E9] rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-4">
+            <Avatar className="w-20 h-20">
+              <AvatarFallback className="bg-white text-[#2E8B57] text-2xl">
+                {user?.name?.substring(0, 2).toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="text-lg font-bold">{user?.name || "User"}</div>
+              <div className="text-sm text-foreground/90">{user?.email || ""}</div>
+              <div className="flex gap-2 mt-2">
+                <Badge className="bg-white text-[#2E8B57] border border-[#e6f4ea]">Level 5 Eco Champion</Badge>
+                <Badge variant="outline" className="bg-white text-[#2E8B57] border border-[#e6f4ea]">
+                  {user?.role === 'DONOR' ? '🎁 Donor' : user?.role === 'COLLECTOR' ? '🚛 Collector' : '👤 User'}
                 </Badge>
               </div>
-            )}
+              {user?.community && (
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="outline" className="bg-white text-[#2E8B57] border border-[#e6f4ea]">
+                    🏘️ {user.community.name}
+                  </Badge>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

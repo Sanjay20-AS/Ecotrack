@@ -145,7 +145,8 @@ public class EducationDataInitializer implements CommandLineRunner {
             "TIPS", admin
         );
         a6.setDifficulty("INTERMEDIATE");
-        a6.setThumbnailUrl("https://images.unsplash.com/photo-1542601906897-ecd432fcfb7d?w=800");
+        // Replaced a previously-removed Unsplash image with a stable image URL
+        a6.setThumbnailUrl("https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800");
         educationContentRepository.save(a6);
     }
 }
