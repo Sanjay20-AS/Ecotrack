@@ -143,14 +143,14 @@ export function ProfileScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-6">
-      <TopBar variant="banner" title="My Profile" />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="My Profile" subtitle="Account & activity" />
 
-      <div className="px-6 pt-4 pb-4">
-        <div className="bg-[#F1F8E9] rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="mx-auto w-full max-w-lg px-4 pt-3 pb-2">
+        <Card className="p-4">
           <div className="flex items-center gap-4">
             <Avatar className="w-20 h-20">
-              <AvatarFallback className="bg-white text-[#2E8B57] text-2xl">
+              <AvatarFallback className="bg-muted/50 text-primary text-2xl">
                 {user?.name?.substring(0, 2).toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
@@ -172,10 +172,10 @@ export function ProfileScreen() {
               )}
             </div>
           </div>
-        </div>
+        </Card>
       </div>
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5 pb-2">
         {/* Error/Success Messages */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">

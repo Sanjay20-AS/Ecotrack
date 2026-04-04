@@ -155,10 +155,10 @@ export function CollectorDashboardScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <TopBar variant="banner" title={user?.name ? `${user.name}` : "Collector"} subtitle={`Good ${getGreeting()} · Waste Collection Dashboard`} />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title={user?.name ? `${user.name}` : "Collector"} subtitle={`Good ${getGreeting()} · your collection hub`} />
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
         {/* Account Status Warning */}
         {!isActive && (
           <Card className="bg-amber-50 border-amber-200 p-4">

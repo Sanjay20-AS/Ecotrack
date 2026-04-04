@@ -84,21 +84,20 @@ export function SignupScreen() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen px-6 py-8 bg-background overflow-y-auto">
-      <div className="flex flex-col items-center mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-            <Leaf className="h-7 w-7 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold text-primary">EcoTrack</h1>
+    <div className="flex flex-col min-h-dvh px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto">
+      <div className="flex flex-col items-center mb-6 mt-2 text-center">
+        <div className="w-14 h-14 bg-primary rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center mb-3">
+          <Leaf className="h-8 w-8 text-primary-foreground" strokeWidth={2} />
         </div>
-        <h2 className="text-xl font-semibold">Create Account</h2>
-        <p className="text-sm text-muted-foreground">Join the sustainability movement</p>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Create account</h1>
+        <p className="text-sm text-muted-foreground mt-1">Join the sustainability movement</p>
       </div>
 
-      <form onSubmit={handleSignup} className="flex flex-col gap-4 max-w-md mx-auto w-full">
+      <div className="max-w-md mx-auto w-full flex-1 flex flex-col pb-6">
+        <div className="rounded-3xl border border-border/60 bg-card/90 backdrop-blur-md p-6 shadow-xl shadow-black/[0.06]">
+      <form onSubmit={handleSignup} className="flex flex-col gap-4">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-2xl text-sm">
             {error}
           </div>
         )}
@@ -110,7 +109,7 @@ export function SignupScreen() {
             <Input
               id="name"
               placeholder="Enter your full name"
-              className="pl-11 h-12 bg-input-background"
+              className="pl-11 bg-input-background"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
@@ -126,7 +125,7 @@ export function SignupScreen() {
               id="email"
               type="email"
               placeholder="Enter your email"
-              className="pl-11 h-12 bg-input-background"
+              className="pl-11 bg-input-background"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
@@ -142,7 +141,7 @@ export function SignupScreen() {
               id="phone"
               type="tel"
               placeholder="Enter your phone number"
-              className="pl-11 h-12 bg-input-background"
+              className="pl-11 bg-input-background"
               value={formData.phoneNumber}
               onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
             />
@@ -157,7 +156,7 @@ export function SignupScreen() {
               id="password"
               type={showPassword ? "text" : "password"}
               placeholder="Create a password"
-              className="pl-11 pr-11 h-12 bg-input-background"
+              className="pl-11 pr-11 bg-input-background"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               required
@@ -230,7 +229,7 @@ export function SignupScreen() {
               <Input
                 id="organization"
                 placeholder="e.g. GreenNGO, City Municipality, or leave blank if independent"
-                className="h-12 bg-white"
+                className="bg-input-background"
                 value={formData.organizationName}
                 onChange={(e) => setFormData({ ...formData, organizationName: e.target.value })}
               />
@@ -263,7 +262,7 @@ export function SignupScreen() {
                 Vehicle Type <span className="text-red-500">*</span>
               </Label>
               <Select value={formData.vehicleType} onValueChange={(value) => setFormData({ ...formData, vehicleType: value })}>
-                <SelectTrigger className="h-12 bg-white">
+                <SelectTrigger className="h-11 rounded-xl bg-input-background">
                   <SelectValue placeholder="Select your vehicle type" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
@@ -284,7 +283,7 @@ export function SignupScreen() {
               <Input
                 id="area"
                 placeholder="e.g. South Zone, Anna Nagar, Coimbatore"
-                className="h-12 bg-white"
+                className="bg-input-background"
                 value={formData.operationArea}
                 onChange={(e) => setFormData({ ...formData, operationArea: e.target.value })}
                 required
@@ -327,17 +326,19 @@ export function SignupScreen() {
           </label>
         </div>
 
-        <Button type="submit" size="lg" className="w-full h-12 mt-4" disabled={loading}>
+        <Button type="submit" size="lg" className="w-full mt-2" disabled={loading}>
           {loading ? "Creating Account..." : "Sign Up"}
         </Button>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
+        <p className="text-center text-sm text-muted-foreground mt-4">
           Already have an account?{" "}
-          <Link to="/" className="text-primary hover:underline font-medium">
+          <Link to="/" className="text-primary hover:underline font-semibold">
             Login
           </Link>
         </p>
       </form>
+        </div>
+      </div>
 
       {/* ── Terms of Service Dialog ── */}
       <Dialog open={showTos} onOpenChange={setShowTos}>

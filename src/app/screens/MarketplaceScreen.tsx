@@ -185,10 +185,10 @@ export function MarketplaceScreen() {
   );
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <TopBar variant="banner" title="Marketplace" subtitle="Share, donate, or swap reusable items" />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="Marketplace" subtitle="Share, donate, or swap items" />
 
-      <div className="px-6 py-6 space-y-4">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-4">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />

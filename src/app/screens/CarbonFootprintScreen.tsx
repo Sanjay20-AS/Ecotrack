@@ -64,32 +64,31 @@ export default function CarbonFootprintScreen() {
 
   if (!userId) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
-        <p className="text-muted-foreground">Please sign in to view your carbon footprint.</p>
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <p className="text-muted-foreground text-center">Please sign in to view your carbon footprint.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#f9fafb' }}>
-      <TopBar variant="banner" title="Carbon Footprint" />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="Carbon Footprint" subtitle="Saved vs generated CO₂" />
 
-      <div className="pt-6 pb-10">
-        <div className="mx-4">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5 pb-10">
           {loading ? (
             <div className="space-y-4">
-              <div className="h-40 rounded-2xl bg-gray-200 animate-pulse" />
-              <div className="grid grid-cols-3 gap-4">
-                <div className="h-28 rounded-2xl bg-gray-200 animate-pulse" />
-                <div className="h-28 rounded-2xl bg-gray-200 animate-pulse" />
-                <div className="h-28 rounded-2xl bg-gray-200 animate-pulse" />
+              <div className="h-40 rounded-2xl bg-muted/70 animate-pulse" />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="h-28 rounded-2xl bg-muted/70 animate-pulse" />
+                <div className="h-28 rounded-2xl bg-muted/70 animate-pulse" />
+                <div className="h-28 rounded-2xl bg-muted/70 animate-pulse" />
               </div>
-              <div className="h-48 rounded-2xl bg-gray-200 animate-pulse" />
-              <div className="h-40 rounded-2xl bg-gray-200 animate-pulse" />
+              <div className="h-48 rounded-2xl bg-muted/70 animate-pulse" />
+              <div className="h-40 rounded-2xl bg-muted/70 animate-pulse" />
             </div>
           ) : error ? (
-            <div className="bg-white rounded-2xl shadow-sm p-6 mb-4 text-center mx-4">
-              <div className="text-red-600 font-semibold">{error}</div>
+            <div className="bg-card/95 border border-border/60 rounded-2xl p-6 text-center backdrop-blur-sm">
+              <div className="text-destructive font-semibold">{error}</div>
               <div className="mt-4">
                 <Button onClick={() => window.location.reload()}>Retry</Button>
               </div>
@@ -97,62 +96,62 @@ export default function CarbonFootprintScreen() {
           ) : (
             <>
               {/* HERO TOP CARD */}
-              <div className="w-full rounded-b-3xl py-8 px-6 mb-4" style={{ background: 'linear-gradient(90deg, #16a34a 0%, #15803d 100%)', color: '#fff' }}>
-                <div className="max-w-4xl mx-auto text-center">
-                  <div className="text-5xl font-bold">{summary?.totalCarbonSaved ?? 0} kg</div>
-                  <div className="mt-2 text-sm">kg CO₂ Saved This Month</div>
+              <div className="w-full rounded-3xl py-8 px-5 border border-white/15 bg-gradient-to-br from-primary via-emerald-800 to-emerald-950 text-primary-foreground shadow-lg">
+                <div className="mx-auto text-center max-w-md">
+                  <div className="text-4xl sm:text-5xl font-bold tracking-tight">{summary?.totalCarbonSaved ?? 0} kg</div>
+                  <div className="mt-2 text-sm text-white/90">CO₂ saved this month</div>
 
-                  <div className="mt-6 text-sm">Score: {summary?.carbonScore ?? 0}/1000</div>
-                  <div className="mt-2 w-full bg-white/30 rounded-full h-4">
-                    <div className="h-4 rounded-full bg-white" style={{ width: `${Math.min(((summary?.carbonScore ?? 0) / 1000) * 100, 100)}%` }} />
+                  <div className="mt-6 text-sm font-medium text-white/95">Score: {summary?.carbonScore ?? 0}/1000</div>
+                  <div className="mt-2 w-full bg-white/25 rounded-full h-3 overflow-hidden">
+                    <div className="h-full rounded-full bg-white" style={{ width: `${Math.min(((summary?.carbonScore ?? 0) / 1000) * 100, 100)}%` }} />
                   </div>
                 </div>
               </div>
 
               {/* STATS ROW */}
-              <div className="grid grid-cols-3 gap-4 mb-4 mx-0">
-                <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
-                  <div className="text-xl font-bold text-red-600">{summary?.totalCarbonGenerated ?? 0} kg</div>
-                  <div className="text-sm text-gray-500 mt-1">CO₂ Generated</div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-card/95 border border-border/60 rounded-2xl p-3 sm:p-4 text-center backdrop-blur-sm">
+                  <div className="text-lg sm:text-xl font-bold text-destructive">{summary?.totalCarbonGenerated ?? 0} kg</div>
+                  <div className="text-xs text-muted-foreground mt-1 leading-tight">CO₂ generated</div>
                 </div>
-                <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
-                  <div className="text-xl font-bold text-green-700">{summary?.netCarbon ?? 0} kg</div>
-                  <div className="text-sm text-gray-500 mt-1">Net Impact</div>
+                <div className="bg-card/95 border border-border/60 rounded-2xl p-3 sm:p-4 text-center backdrop-blur-sm">
+                  <div className="text-lg sm:text-xl font-bold text-primary">{summary?.netCarbon ?? 0} kg</div>
+                  <div className="text-xs text-muted-foreground mt-1 leading-tight">Net impact</div>
                 </div>
-                <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
-                  <div className="text-xl font-bold text-green-700">{summary?.carbonScore ?? 0}</div>
-                  <div className="text-sm text-gray-500 mt-1">Carbon Score</div>
+                <div className="bg-card/95 border border-border/60 rounded-2xl p-3 sm:p-4 text-center backdrop-blur-sm">
+                  <div className="text-lg sm:text-xl font-bold text-primary">{summary?.carbonScore ?? 0}</div>
+                  <div className="text-xs text-muted-foreground mt-1 leading-tight">Carbon score</div>
                 </div>
               </div>
 
               {/* EQUIVALENTS SECTION */}
-              <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
-                <h3 className="font-semibold mb-3">Your Impact Equals</h3>
+              <div className="bg-card/95 border border-border/60 rounded-2xl p-4 backdrop-blur-sm">
+                <h3 className="font-semibold mb-3">Your impact equals</h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center py-4">
                     <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-lg">🌳</div>
                     <div className="mt-3 text-2xl font-bold">{summary?.treesEquivalent ?? 0}</div>
-                    <div className="text-sm text-gray-500 mt-1">trees planted</div>
+                    <div className="text-sm text-muted-foreground mt-1">trees planted</div>
                   </div>
 
                   <div className="text-center py-4">
                     <div className="mx-auto w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-lg">🚗</div>
                     <div className="mt-3 text-2xl font-bold">{summary?.carKmEquivalent ?? 0}</div>
-                    <div className="text-sm text-gray-500 mt-1">km not driven</div>
+                    <div className="text-sm text-muted-foreground mt-1">km not driven</div>
                   </div>
 
                   <div className="text-center py-4">
                     <div className="mx-auto w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-lg">💡</div>
                     <div className="mt-3 text-2xl font-bold">{summary?.electricityHoursEquivalent ?? 0}</div>
-                    <div className="text-sm text-gray-500 mt-1">hours electricity</div>
+                    <div className="text-sm text-muted-foreground mt-1">hours electricity</div>
                   </div>
                 </div>
               </div>
 
               {/* CHART SECTION */}
-              <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+              <div className="bg-card/95 border border-border/60 rounded-2xl p-4 backdrop-blur-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold">Monthly CO₂ Saved</h3>
+                  <h3 className="font-semibold">Monthly CO₂ saved</h3>
                 </div>
                 {Array.isArray(history) && history.length > 0 ? (
                   (() => {
@@ -169,7 +168,7 @@ export default function CarbonFootprintScreen() {
 
                     if (mapped.length === 0) {
                       return (
-                        <div className="h-48 flex flex-col items-center justify-center text-gray-500">
+                        <div className="h-48 flex flex-col items-center justify-center text-muted-foreground text-sm text-center px-2">
                           <div>Complete pickups to see your monthly progress 🌱</div>
                         </div>
                       );
@@ -183,36 +182,36 @@ export default function CarbonFootprintScreen() {
                             <XAxis dataKey="month" label={{ value: 'Month', position: 'insideBottom', offset: -5 }} />
                             <YAxis label={{ value: 'kg CO₂', angle: -90, position: 'insideLeft' }} />
                             <Tooltip formatter={(value: any) => [`${value} kg CO2 saved`, '']} />
-                            <Bar dataKey="carbonSaved" fill="#16a34a" />
+                            <Bar dataKey="carbonSaved" fill="var(--primary)" radius={[6, 6, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
                     );
                   })()
                 ) : (
-                  <div className="h-48 flex flex-col items-center justify-center text-gray-500">
-                    <div>Complete pickups to see your monthly progress 🌱</div>
+                  <div className="h-48 flex flex-col items-center justify-center text-muted-foreground text-sm text-center px-2">
+                    <div>Complete pickups to see your monthly progress</div>
                   </div>
                 )}
               </div>
 
               {/* COMMUNITY COMPARISON */}
-              <div className="bg-[#f0fdf4] border border-green-200 rounded-2xl shadow-sm p-4 mb-4">
+              <div className="bg-primary/6 border border-primary/15 rounded-2xl p-4 backdrop-blur-sm">
                 {summary ? (
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <div className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-semibold">{summary?.pctMoreThanAvg ?? 0}%</div>
-                      <div className="mt-2 text-sm">You save <strong>{summary?.pctMoreThanAvg ?? 0}%</strong> more than average EcoTrack user</div>
+                      <div className="inline-block bg-primary/12 text-primary px-3 py-1 rounded-full text-xs font-semibold">{summary?.pctMoreThanAvg ?? 0}%</div>
+                      <div className="mt-2 text-sm text-foreground">You save <strong>{summary?.pctMoreThanAvg ?? 0}%</strong> more than the average EcoTrack user</div>
                     </div>
-                    <div className="text-sm text-gray-600">Your Rank: <strong>{summary?.rank ?? '—'}</strong></div>
+                    <div className="text-sm text-muted-foreground shrink-0">Your rank: <strong className="text-foreground">{summary?.rank ?? "—"}</strong></div>
                   </div>
                 ) : (
-                  <div className="text-gray-600">Log waste to see your community ranking</div>
+                  <div className="text-muted-foreground text-sm">Log waste to see your community ranking</div>
                 )}
               </div>
 
               {/* LEADERBOARD */}
-              <div className="bg-white rounded-2xl shadow-sm p-4 mb-6">
+              <div className="bg-card/95 border border-border/60 rounded-2xl p-4 backdrop-blur-sm">
                 <h3 className="font-semibold mb-3">🏆 Top Carbon Savers</h3>
                 <div className="divide-y">
                   {leaderboard && leaderboard.length > 0 ? (
@@ -221,36 +220,35 @@ export default function CarbonFootprintScreen() {
                       const rank = idx + 1;
                       const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
                       return (
-                        <div key={idx} className={`flex items-center justify-between py-3 ${isCurrent ? 'bg-green-50 rounded-lg' : ''}`}>
+                        <div key={idx} className={`flex items-center justify-between py-3 ${isCurrent ? "bg-primary/8 rounded-xl px-2" : ""}`}>
                           <div className="flex items-center gap-3">
                             <div className="w-8 text-lg">{rankLabel}</div>
                             <div className="truncate text-sm font-medium">{u.name}</div>
                           </div>
                           <div className="text-sm text-right">
-                            <div className="font-semibold text-green-700">{u.totalCarbonSaved} kg</div>
-                            <div className="text-xs text-gray-500">{u.treesEquivalent ?? 0} trees</div>
+                            <div className="font-semibold text-primary">{u.totalCarbonSaved} kg</div>
+                            <div className="text-xs text-muted-foreground">{u.treesEquivalent ?? 0} trees</div>
                           </div>
                         </div>
                       );
                     })
                   ) : (
-                    <div className="py-6 text-center text-gray-500">No leaderboard data yet</div>
+                    <div className="py-6 text-center text-muted-foreground text-sm">No leaderboard data yet</div>
                   )}
                 </div>
               </div>
 
               {/* EMPTY / ZERO STATE CTA */}
               {((summary?.totalCarbonSaved ?? 0) === 0 && (summary?.totalCarbonGenerated ?? 0) === 0) && (
-                <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 text-center">
-                  <div className="text-lg font-semibold">Start logging waste to track your carbon impact! 🌱</div>
+                <div className="bg-card/95 border border-border/60 rounded-2xl p-6 text-center backdrop-blur-sm">
+                  <div className="text-lg font-semibold">Start logging waste to track your carbon impact</div>
                   <div className="mt-4">
-                    <Button onClick={() => navigate('/app/track')} className="bg-green-600 text-white">Log Waste Now</Button>
+                    <Button onClick={() => navigate("/app/track")}>Log waste now</Button>
                   </div>
                 </div>
               )}
             </>
           )}
-        </div>
       </div>
     </div>
   );

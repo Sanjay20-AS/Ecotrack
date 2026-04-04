@@ -382,9 +382,9 @@ export function CollectorPickupsScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-6">
+    <div className="min-h-screen bg-background pb-8">
       <TopBar variant="banner" title="Waste Pickups" subtitle={`${allWaste.filter((w) => w.status === "PENDING").length} pending · ${allWaste.filter((w) => w.status === "IN_PROGRESS").length} in progress`} />
-      <div className="px-6 py-5 space-y-4">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-4">
         {/* Success Toast */}
         {successMsg && (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex items-center gap-2 animate-in fade-in">

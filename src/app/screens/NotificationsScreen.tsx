@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Bell, Check, Trash2, Loader2 } from "lucide-react";
-import { Link } from "react-router";
+import { Bell, Check, Trash2, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import TopBar from "../components/TopBar";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -33,6 +34,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export function NotificationsScreen() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const userId = Number(localStorage.getItem("userId"));
@@ -85,34 +87,28 @@ export function NotificationsScreen() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-8 pb-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Link to="/app/profile" className="hover:opacity-80">
-            <ArrowLeft className="h-6 w-6" />
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">Notifications</h1>
-            <p className="text-sm opacity-90">
-              {unreadCount} new notification{unreadCount !== 1 ? "s" : ""}
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar
+        variant="banner"
+        title="Notifications"
+        subtitle={`${unreadCount} unread`}
+        showBack
+        onBack={() => navigate("/app/profile")}
+        bannerAccessory={
+          unreadCount > 0 ? (
+            <Button
+              onClick={handleMarkAllAsRead}
+              variant="outline"
+              size="sm"
+              className="w-full mt-1"
+            >
+              Mark all as read
+            </Button>
+          ) : null
+        }
+      />
 
-        {unreadCount > 0 && (
-          <Button
-            onClick={handleMarkAllAsRead}
-            variant="outline"
-            size="sm"
-            className="w-full bg-primary-foreground text-primary hover:bg-primary-foreground/90"
-          >
-            Mark all as read
-          </Button>
-        )}
-      </div>
-
-      <div className="px-6 py-6 space-y-3">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-3">
         {loading ? (
           <div className="text-center py-12">
             <Loader2 className="h-10 w-10 mx-auto text-primary animate-spin mb-4" />

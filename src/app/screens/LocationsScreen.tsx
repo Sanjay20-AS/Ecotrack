@@ -161,10 +161,10 @@ export function LocationsScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-6">
-      <TopBar variant="banner" title="Disposal Locations" subtitle="Find recycling centers near you" />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="Disposal Locations" subtitle="Recycling centers near you" />
 
-      <div className="px-6 py-6 space-y-4">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-4">
         {/* Header info */}
         <div className="text-sm text-muted-foreground flex items-center gap-1">
           <MapPin className="h-3.5 w-3.5" />

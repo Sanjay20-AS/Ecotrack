@@ -54,14 +54,14 @@ export function AdminOverviewScreen() {
   if (!stats) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <div>
-        <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-        <p className="text-muted-foreground text-sm mt-1">Platform statistics and quick actions</p>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dashboard overview</h1>
+        <p className="text-muted-foreground text-sm mt-1.5 leading-relaxed">Platform statistics and quick actions</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon={Users} label="Total Users" value={stats.totalUsers} color="bg-blue-500" />
         <StatCard icon={Leaf} label="Donors" value={stats.totalDonors} color="bg-green-500" />
         <StatCard icon={UserCheck} label="Active Collectors" value={stats.activeCollectors} color="bg-emerald-500" />
@@ -131,7 +131,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   return (
     <Card className="p-4">
       <div className="flex items-center gap-3">
-        <div className={`${color} text-white p-2.5 rounded-lg`}>
+        <div className={`${color} text-white p-2.5 rounded-xl shadow-sm`}>
           <Icon className="h-5 w-5" />
         </div>
         <div>

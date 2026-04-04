@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Moon, Bell, Lock, Volume2, Eye, Trash2, Leaf } from "lucide-react";
-import { Link } from "react-router";
+import { Moon, Bell, Lock, Volume2, Eye, Trash2, Leaf } from "lucide-react";
+import { useNavigate } from "react-router";
+import TopBar from "../components/TopBar";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
@@ -9,6 +10,7 @@ import { userAPI, settingsAPI } from "../services/apiService";
 import toast from "react-hot-toast";
 
 export function SettingsScreen() {
+  const navigate = useNavigate();
   const userId = parseInt(localStorage.getItem("userId") ?? "0");
 
   const [settings, setSettings] = useState({
@@ -90,25 +92,17 @@ export function SettingsScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-8 pb-6">
-        <div className="flex items-center gap-4">
-          <Link to="/app/profile" className="hover:opacity-80">
-            <ArrowLeft className="h-6 w-6" />
-          </Link>
-          <h1 className="text-2xl font-bold">Settings</h1>
-        </div>
-      </div>
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="Settings" subtitle="Preferences & account" showBack onBack={() => navigate("/app/profile")} />
 
       {!loaded ? (
         <div className="flex items-center justify-center py-20 text-muted-foreground">Loading settings...</div>
       ) : (
-        <div className="px-6 py-6 space-y-6">
-          <div className="mb-4">
+        <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
+          <div className="mb-1">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-                <Leaf className="h-6 w-6 text-[#2E8B57]" />
+              <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/15">
+                <Leaf className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <div className="text-lg font-semibold">EcoTrack</div>

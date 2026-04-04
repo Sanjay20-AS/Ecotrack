@@ -145,8 +145,8 @@ export function HomeScreen() {
         window.location.href = "/";
       }, 2000);
       return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
-          <div className="text-center space-y-4 max-w-md">
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+          <div className="text-center space-y-4 max-w-md mx-auto w-full">
             <Truck className="h-16 w-16 text-primary mx-auto" />
             <h1 className="text-2xl font-bold">
               {accountStatus === "PENDING_APPROVAL" ? "Under Review" : "Application Rejected"}
@@ -170,13 +170,13 @@ export function HomeScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <TopBar variant="banner" title="Home" />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="Home" subtitle="Your impact at a glance" />
 
-      <div className="px-6 pt-4">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
-            <Leaf className="h-8 w-8 text-[#2E8B57]" />
+      <div className="mx-auto w-full max-w-lg px-4 pt-4">
+        <div className="flex items-center gap-4 mb-2">
+          <div className="w-16 h-16 bg-card/90 rounded-2xl border border-border/60 flex items-center justify-center shadow-sm backdrop-blur-sm">
+            <Leaf className="h-8 w-8 text-primary" />
           </div>
           <div>
             <h2 className="text-2xl font-bold">Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!</h2>
@@ -185,7 +185,7 @@ export function HomeScreen() {
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
         {/* Quick Stats */}
         <div>
           <h2 className="text-lg font-semibold mb-4">This Week's Impact</h2>

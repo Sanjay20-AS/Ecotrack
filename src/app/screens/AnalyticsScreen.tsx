@@ -188,10 +188,10 @@ export function AnalyticsScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-6">
-      <TopBar variant="banner" title="Analytics" subtitle="Track your environmental impact" />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="Analytics" subtitle="Your environmental impact" />
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
         {/* Dynamic Data Indicator */}
         <div className={`p-3 rounded-lg border-2 transition-all duration-500 ${
           wasteType === "food" ? "bg-green-50 border-green-300 text-green-800" : 

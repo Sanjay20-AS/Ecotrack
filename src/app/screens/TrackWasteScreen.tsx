@@ -746,10 +746,10 @@ export function TrackWasteScreen() {
   const lastLogged = allEntries[0];
 
   return (
-    <div className="min-h-screen bg-background pb-6">
-      <TopBar variant="banner" title="Track Waste" subtitle="Log your waste to track your impact" />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="Track Waste" subtitle="Log waste and track your impact" />
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
         {/* Real-world Impact Summary */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="p-4">

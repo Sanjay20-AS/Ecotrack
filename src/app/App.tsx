@@ -14,12 +14,15 @@ export default function App() {
 
   if (showSplash) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#2E8B57]">
-        <div className="flex flex-col items-center gap-3 text-white">
-          <div className="w-28 h-28 bg-white/10 rounded-full flex items-center justify-center">
-            <Leaf className="h-12 w-12 text-white" />
+      <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-primary via-emerald-800 to-emerald-950 px-6">
+        <div className="flex flex-col items-center gap-5 text-primary-foreground text-center">
+          <div className="w-24 h-24 rounded-[1.75rem] bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-[0_20px_50px_rgba(0,0,0,0.25)]">
+            <Leaf className="h-11 w-11 text-white" strokeWidth={2} />
           </div>
-          <h1 className="text-3xl font-bold">EcoTrack</h1>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">EcoTrack</h1>
+            <p className="text-sm text-white/80 mt-1">Waste less, live lighter</p>
+          </div>
         </div>
       </div>
     );

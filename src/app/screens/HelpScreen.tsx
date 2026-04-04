@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ArrowLeft, MessageCircle, Mail, Phone, HelpCircle, ChevronDown, CheckCircle2 } from "lucide-react";
-import { Link } from "react-router";
+import { MessageCircle, Mail, Phone, HelpCircle, ChevronDown, CheckCircle2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import TopBar from "../components/TopBar";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -10,6 +11,7 @@ import { supportAPI } from "../services/apiService";
 import toast from "react-hot-toast";
 
 export function HelpScreen() {
+  const navigate = useNavigate();
   const userId = parseInt(localStorage.getItem("userId") ?? "0");
 
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(0);
@@ -88,21 +90,16 @@ export function HelpScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-6 pt-8 pb-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Link to="/app/profile" className="hover:opacity-80">
-            <ArrowLeft className="h-6 w-6" />
-          </Link>
-          <h1 className="text-2xl font-bold">Help & Support</h1>
-        </div>
-        <p className="text-sm opacity-90">
-          Get answers to common questions or contact our support team
-        </p>
-      </div>
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar
+        variant="banner"
+        title="Help & Support"
+        subtitle="FAQs, contact, and resources"
+        showBack
+        onBack={() => navigate("/app/profile")}
+      />
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
         {/* Quick Links */}
         <div>
           <h2 className="text-lg font-semibold mb-4">Quick Help</h2>

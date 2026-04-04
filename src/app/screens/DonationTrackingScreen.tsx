@@ -140,10 +140,10 @@ export function DonationTrackingScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-6">
+    <div className="min-h-screen bg-background pb-8">
       <TopBar variant="banner" title="My Donations" subtitle={`${activeDonations.length} active · ${completedDonations.length} completed`} />
 
-      <div className="px-6 py-5 space-y-5">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
         {donations.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground">
             <Package className="h-12 w-12 mx-auto mb-3 opacity-40" />

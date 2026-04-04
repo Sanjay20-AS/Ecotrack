@@ -397,10 +397,10 @@ export function CollectorRoutesScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-6">
-      <TopBar variant="banner" title="Collection Routes" subtitle={`${inProgressWaste.length} active · ${pendingWaste.length} pending pickups`} />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="Collection Routes" subtitle={`${inProgressWaste.length} active · ${pendingWaste.length} pending`} />
 
-      <div className="px-6 py-5 space-y-4">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-4">
         {/* Route Summary */}
         <div className="grid grid-cols-3 gap-3">
           <Card className="p-3 text-center">

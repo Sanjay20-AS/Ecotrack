@@ -54,25 +54,23 @@ export function ForgotPasswordScreen() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen px-6 py-12 bg-background">
-      <div className="flex flex-col items-center mb-10 mt-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-14 h-14 bg-primary rounded-full flex items-center justify-center">
-            <Leaf className="h-8 w-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold text-primary">EcoTrack</h1>
+    <div className="flex flex-col min-h-dvh px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div className="flex flex-col items-center mb-8 mt-6 text-center">
+        <div className="w-16 h-16 bg-primary rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center mb-4">
+          <Leaf className="h-9 w-9 text-primary-foreground" strokeWidth={2} />
         </div>
-        <h2 className="text-xl font-semibold">Reset Password</h2>
-        <p className="text-sm text-muted-foreground text-center mt-1">
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Reset password</h1>
+        <p className="text-sm text-muted-foreground mt-2 max-w-xs leading-relaxed">
           {step === "email" && "Enter your account email to reset your password"}
           {step === "reset" && "Create a new password for your account"}
           {step === "done" && "Your password has been updated"}
         </p>
       </div>
 
-      <div className="max-w-md mx-auto w-full">
+      <div className="max-w-md mx-auto w-full flex-1 flex flex-col">
+        <div className="rounded-3xl border border-border/60 bg-card/90 backdrop-blur-md p-6 shadow-xl shadow-black/[0.06]">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-2xl text-sm mb-4">
             {error}
           </div>
         )}
@@ -89,12 +87,12 @@ export function ForgotPasswordScreen() {
                   placeholder="Enter your registered email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-11 h-12 bg-input-background"
+                  className="pl-11 bg-input-background"
                   required
                 />
               </div>
             </div>
-            <Button type="submit" size="lg" className="w-full h-12 mt-2">
+            <Button type="submit" size="lg" className="w-full mt-2">
               Continue
             </Button>
           </form>
@@ -102,7 +100,7 @@ export function ForgotPasswordScreen() {
 
         {step === "reset" && (
           <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
-            <div className="bg-muted/50 rounded-lg px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+            <div className="bg-muted/60 rounded-2xl px-4 py-3 text-sm text-muted-foreground flex items-center gap-2 border border-border/50">
               <Mail className="h-4 w-4" />
               {email}
             </div>
@@ -116,7 +114,7 @@ export function ForgotPasswordScreen() {
                   placeholder="Enter new password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="pl-11 pr-11 h-12 bg-input-background"
+                  className="pl-11 pr-11 bg-input-background"
                   required
                   minLength={6}
                 />
@@ -139,13 +137,13 @@ export function ForgotPasswordScreen() {
                   placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-11 pr-11 h-12 bg-input-background"
+                  className="pl-11 pr-11 bg-input-background"
                   required
                   minLength={6}
                 />
               </div>
             </div>
-            <Button type="submit" size="lg" className="w-full h-12 mt-2" disabled={loading}>
+            <Button type="submit" size="lg" className="w-full mt-2" disabled={loading}>
               {loading ? "Resetting..." : "Reset Password"}
             </Button>
             <button
@@ -164,17 +162,18 @@ export function ForgotPasswordScreen() {
             <p className="text-center text-muted-foreground">
               You can now log in with your new password.
             </p>
-            <Button size="lg" className="w-full h-12" onClick={() => navigate("/")}>
+            <Button size="lg" className="w-full" onClick={() => navigate("/")}>
               Back to Login
             </Button>
           </div>
         )}
 
-        <div className="mt-8 text-center">
-          <Link to="/" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
+        <div className="mt-6 text-center">
+          <Link to="/" className="text-sm text-primary hover:underline inline-flex items-center gap-1.5 font-semibold">
             <ArrowLeft className="h-4 w-4" />
             Back to Login
           </Link>
+        </div>
         </div>
       </div>
     </div>

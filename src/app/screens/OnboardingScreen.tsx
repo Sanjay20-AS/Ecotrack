@@ -113,7 +113,7 @@ export function OnboardingScreen() {
 
   if (!isDonor && !isCollector) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+      <div className="min-h-dvh bg-background flex items-center justify-center px-4">
         <div className="text-center">
           <p className="text-muted-foreground">Loading...</p>
         </div>
@@ -122,19 +122,19 @@ export function OnboardingScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-6 py-8 flex flex-col">
+    <div className="min-h-dvh bg-background flex flex-col px-4 max-w-lg mx-auto w-full pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] py-6">
       {/* Progress */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-muted-foreground">Step {step} of {totalSteps}</span>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/app")}>
+      <div className="mb-6 rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm p-4 shadow-sm">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-sm font-semibold text-foreground">Step {step} of {totalSteps}</span>
+          <Button variant="ghost" size="sm" className="rounded-xl text-muted-foreground" onClick={() => navigate("/app")}>
             Skip
           </Button>
         </div>
-        <Progress value={progressValue} className="h-2" />
+        <Progress value={progressValue} className="h-2 rounded-full" />
       </div>
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* ==================== DONOR FLOW ==================== */}
         
         {isDonor && step === 1 && (

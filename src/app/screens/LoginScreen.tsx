@@ -53,24 +53,22 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen px-6 py-12 bg-background">
-      {/* Logo and Tagline */}
-      <div className="flex flex-col items-center mb-12 mt-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-14 h-14 bg-primary rounded-full flex items-center justify-center">
-            <Leaf className="h-8 w-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold text-primary">EcoTrack</h1>
+    <div className="flex flex-col min-h-dvh px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div className="flex flex-col items-center mt-6 mb-8 text-center">
+        <div className="w-16 h-16 bg-primary rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center mb-4">
+          <Leaf className="h-9 w-9 text-primary-foreground" strokeWidth={2} />
         </div>
-        <p className="text-muted-foreground text-center">
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">EcoTrack</h1>
+        <p className="text-muted-foreground text-sm mt-2 max-w-xs leading-relaxed">
           Track, reduce, and manage your waste sustainably
         </p>
       </div>
 
-      {/* Login Form */}
-      <form onSubmit={handleLogin} className="flex flex-col gap-4 max-w-md mx-auto w-full">
+      <div className="max-w-md mx-auto w-full flex-1 flex flex-col">
+        <div className="rounded-3xl border border-border/60 bg-card/90 backdrop-blur-md p-6 shadow-xl shadow-black/[0.06]">
+          <form onSubmit={handleLogin} className="flex flex-col gap-4">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-2xl text-sm">
             {error}
           </div>
         )}
@@ -87,7 +85,7 @@ export function LoginScreen() {
               placeholder="Enter your email or phone"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="pl-11 h-12 bg-input-background"
+              className="pl-11 bg-input-background"
               required
             />
           </div>
@@ -105,7 +103,7 @@ export function LoginScreen() {
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="pl-11 pr-11 h-12 bg-input-background"
+              className="pl-11 pr-11 bg-input-background"
               required
             />
             <button
@@ -129,7 +127,7 @@ export function LoginScreen() {
           Forgot password?
         </Link>
 
-        <Button type="submit" size="lg" className="w-full h-12 mt-4" disabled={loading}>
+        <Button type="submit" size="lg" className="w-full mt-2" disabled={loading}>
           {loading ? "Logging in..." : "Login"}
         </Button>
 
@@ -142,7 +140,7 @@ export function LoginScreen() {
 
         {/* Social Login */}
         <div className="grid grid-cols-2 gap-3">
-          <Button variant="outline" size="lg" className="h-12" type="button" onClick={() => toast("Google login coming soon! Use email login for now.", { icon: "🔜" })}>
+          <Button variant="outline" size="lg" className="w-full" type="button" onClick={() => toast("Google login coming soon! Use email login for now.", { icon: "🔜" })}>
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
@@ -163,7 +161,7 @@ export function LoginScreen() {
             </svg>
             Google
           </Button>
-          <Button variant="outline" size="lg" className="h-12" type="button" onClick={() => toast("Facebook login coming soon! Use email login for now.", { icon: "🔜" })}>
+          <Button variant="outline" size="lg" className="w-full" type="button" onClick={() => toast("Facebook login coming soon! Use email login for now.", { icon: "🔜" })}>
             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
             </svg>
@@ -171,13 +169,15 @@ export function LoginScreen() {
           </Button>
         </div>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
+        <p className="text-center text-sm text-muted-foreground mt-4">
           Don't have an account?{" "}
-          <Link to="/signup" className="text-primary hover:underline font-medium">
+          <Link to="/signup" className="text-primary hover:underline font-semibold">
             Sign up
           </Link>
         </p>
-      </form>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

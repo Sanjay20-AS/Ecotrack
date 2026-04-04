@@ -160,10 +160,10 @@ export function EducationScreen() {
   );
 
   return (
-    <div className="min-h-screen bg-background pb-6">
-      <TopBar variant="banner" title="Learn & Educate" subtitle="Learn about sustainable practices" />
+    <div className="min-h-screen bg-background pb-8">
+      <TopBar variant="banner" title="Learn & Educate" subtitle="Sustainable living guides" />
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />

@@ -118,7 +118,7 @@ export function RewardsScreen() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-4 max-w-lg mx-auto w-full">
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-muted-foreground text-center">{error}</p>
         <Button onClick={loadData}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button>
@@ -127,7 +127,7 @@ export function RewardsScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-6">
+    <div className="min-h-screen bg-background pb-8">
       <TopBar variant="banner" title="Rewards" subtitle="Earn points by logging waste" />
 
       {/* Points balance */}
@@ -158,7 +158,7 @@ export function RewardsScreen() {
           )}
         </Card>
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
         {/* How points work */}
         <Card className="p-4 bg-muted/30">
           <div className="flex items-center gap-2 mb-3">

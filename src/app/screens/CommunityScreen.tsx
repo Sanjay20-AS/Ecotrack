@@ -349,10 +349,10 @@ export function CommunityScreen() {
   // If user doesn't have a community, show join/create UI
   if (!userCommunity) {
     return (
-      <div className="min-h-screen bg-background pb-6">
-        <TopBar variant="compact" title="Community" subtitle="Connect with like-minded eco warriors" />
+      <div className="min-h-screen bg-background pb-8">
+        <TopBar variant="banner" title="Community" subtitle="Join groups and local eco action" />
 
-        <div className="px-6 py-6 space-y-6">
+        <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
           {/* Error/Success Messages */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -519,10 +519,10 @@ export function CommunityScreen() {
 
   // If user has a community, show community dashboard
   return (
-    <div className="min-h-screen bg-background pb-6">
+    <div className="min-h-screen bg-background pb-8">
       <TopBar variant="banner" title={userCommunity.name} subtitle={userCommunity.description} />
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
         {/* Error/Success Messages */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">

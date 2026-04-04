@@ -163,20 +163,24 @@ export function AdminDashboardScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white px-6 pt-12 pb-6 rounded-b-3xl">
+    <div className="min-h-screen bg-background pb-8">
+      <div className="max-w-6xl mx-auto px-4 pt-4">
+      <div className="rounded-3xl border border-border/50 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 text-white px-5 pt-10 pb-7 shadow-xl">
         <div className="flex items-center gap-3 mb-2">
-          <Shield className="h-7 w-7" />
-          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 border border-white/15">
+            <Shield className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Admin dashboard</h1>
+            <p className="text-sm text-white/75 mt-0.5">Users, collectors & waste records</p>
+          </div>
         </div>
-        <p className="text-sm opacity-80">Manage users, collectors & waste records</p>
       </div>
 
       {/* Tabs */}
-      <div className="px-4 -mt-4">
+      <div className="px-0 sm:px-1 -mt-5">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-4 h-12 bg-card shadow-md">
+          <TabsList className="w-full grid grid-cols-4 h-12 rounded-2xl bg-card/95 border border-border/60 shadow-lg backdrop-blur-md p-1">
             <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
             <TabsTrigger value="users" className="text-xs">Users</TabsTrigger>
             <TabsTrigger value="collectors" className="text-xs">Collectors</TabsTrigger>
@@ -475,6 +479,7 @@ export function AdminDashboardScreen() {
           </div>
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -485,7 +490,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   return (
     <Card className="p-4">
       <div className="flex items-center gap-3">
-        <div className={`${color} text-white p-2 rounded-lg`}>
+        <div className={`${color} text-white p-2.5 rounded-xl shadow-sm`}>
           <Icon className="h-5 w-5" />
         </div>
         <div>
