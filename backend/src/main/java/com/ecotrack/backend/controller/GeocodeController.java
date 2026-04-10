@@ -19,6 +19,7 @@ import com.ecotrack.backend.repository.WasteRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,14 +46,18 @@ public class GeocodeController {
                 // No key configured — return empty results to frontend
                 return ResponseEntity.status(502).contentType(MediaType.APPLICATION_JSON).body("[]");
             }
-            String url = "https://api.geoapify.com/v1/geocode/search?text=" + java.net.URLEncoder.encode(address, "UTF-8") + "&apiKey=" + java.net.URLEncoder.encode(geoapifyKey, "UTF-8") + "&limit=1&lang=en";
+            String url = "https://api.geoapify.com/v1/geocode/search?text="
+                    + java.net.URLEncoder.encode(address, StandardCharsets.UTF_8)
+                    + "&apiKey="
+                    + java.net.URLEncoder.encode(geoapifyKey, StandardCharsets.UTF_8)
+                    + "&limit=1&lang=en";
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Void> entity = new HttpEntity<>(headers);
             ResponseEntity<String> resp = rest.exchange(url, HttpMethod.GET, entity, String.class);
             // Return the Geoapify response body directly
             return ResponseEntity.status(resp.getStatusCode()).contentType(MediaType.APPLICATION_JSON).body(resp.getBody());
-        } catch (RestClientException | java.io.UnsupportedEncodingException ex) {
+        } catch (RestClientException ex) {
             return ResponseEntity.status(502).contentType(MediaType.APPLICATION_JSON).body("[]");
         }
     }
@@ -70,7 +75,11 @@ public class GeocodeController {
                     String addr = w.getLocationAddress();
                     if (addr == null || addr.isBlank()) continue;
                     // call Geoapify
-                    String url = "https://api.geoapify.com/v1/geocode/search?text=" + java.net.URLEncoder.encode(addr, "UTF-8") + "&apiKey=" + java.net.URLEncoder.encode(geoapifyKey, "UTF-8") + "&limit=1&lang=en";
+                    String url = "https://api.geoapify.com/v1/geocode/search?text="
+                            + java.net.URLEncoder.encode(addr, StandardCharsets.UTF_8)
+                            + "&apiKey="
+                            + java.net.URLEncoder.encode(geoapifyKey, StandardCharsets.UTF_8)
+                            + "&limit=1&lang=en";
                     HttpHeaders headers = new HttpHeaders();
                     headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
                     HttpEntity<Void> entity = new HttpEntity<>(headers);
