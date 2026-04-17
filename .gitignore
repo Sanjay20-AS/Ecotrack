@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 # ─── Frontend Dependencies ─────────────────────────────────────
 node_modules/
 package-lock.json
@@ -14,6 +13,7 @@ backend/target/
 backend/.mvn/
 backend/.mvn/wrapper/maven-wrapper.jar
 backend/lib/
+target/
 
 # ─── Build Artifacts ──────────────────────────────────────────
 *.jar
@@ -22,14 +22,15 @@ backend/lib/
 *.o
 
 # ─── Environment Configuration (NEVER COMMIT) ──────────────────
+# Local environment files - DO NOT COMMIT
 .env
 .env.local
 .env.*.local
 .env.production
 .env.production.local
-backend/src/main/resources/application.properties
-backend/src/main/resources/application-*.properties
-backend/src/main/resources/application-prod.properties
+
+# DO NOT ignore application.properties files - they're committed
+# Only ignore local overrides via .env files above
 
 # ─── Test & Temporary Files ───────────────────────────────────
 backend/accuracy_report.txt
@@ -40,6 +41,7 @@ notes.txt
 *.sql
 debug.log
 test-*.log
+*.log
 
 # ─── JVM Crash Dumps ──────────────────────────────────────────
 hs_err_pid*.log
@@ -86,12 +88,3 @@ Thumbs.db
 .m2/
 .gradle/
 .java-version
-=======
-node_modules
-dist
-.vscode
-*.log
-.env
-backend/target/
-target/
->>>>>>> Stashed changes

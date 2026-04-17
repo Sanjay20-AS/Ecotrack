@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "dockerfile",
+    "dockerfile": "./Dockerfile"
+  },
+  "start": {
+    "cmd": "java -jar app.jar"
+  }
+}

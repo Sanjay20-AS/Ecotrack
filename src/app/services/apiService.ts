@@ -1,7 +1,8 @@
 // API Service for EcoTrack Backend
 import toast from 'react-hot-toast';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+// Get API URL from environment or use default
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080') + '/api';
 
 // Custom API error with status and parsed body
 export class ApiError extends Error {

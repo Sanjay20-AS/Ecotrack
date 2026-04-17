@@ -16,4 +16,22 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    // Enable source maps for development
+    sourcemap: true,
+  },
+  build: {
+    // Generate source maps for debugging
+    sourcemap: false,
+    // Optimize build size
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor': ['react', 'react-dom'],
+          'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-alert-dialog'],
+        }
+      }
+    }
+  }
 })
