@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { Users, Trophy, TrendingUp, Award, Plus, Search, UserPlus, LogOut, Medal, Crown, Star } from "lucide-react";
+import { Users, Trophy, TrendingUp, Award, Plus, Search, UserPlus, LogOut, Medal, Crown, Star, Calendar } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Button } from "../components/ui/button";
@@ -8,7 +8,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
-import { communityAPI, userAPI } from "../services/apiService";
+import { communityAPI, userAPI, eventsAPI } from "../services/apiService";
 import TopBar from "../components/TopBar";
 
 type DetailTab = "members" | "leaderboard";
@@ -63,6 +63,7 @@ export function CommunityScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [events, setEvents] = useState<any[]>([]);
 
   const [createFormData, setCreateFormData] = useState({
     name: "",
@@ -72,6 +73,7 @@ export function CommunityScreen() {
 
   useEffect(() => {
     loadUserCommunity();
+    loadEvents();
   }, []);
 
   const loadUserCommunity = async () => {
@@ -147,6 +149,22 @@ export function CommunityScreen() {
       console.error("Failed to load leaderboard:", err);
       setError("Failed to load leaderboard");
       toast.error("Failed to load leaderboard.");
+    }
+  };
+
+  const loadEvents = async () => {
+    try {
+      let location = localStorage.getItem("userLocation") || "Coimbatore";
+      const eventsData = await eventsAPI.getUpcomingEventsByLocation(location);
+      setEvents(Array.isArray(eventsData) ? eventsData : []);
+    } catch (err) {
+      console.error("Failed to load events:", err);
+      try {
+        const eventsData = await eventsAPI.getUpcomingEvents();
+        setEvents(Array.isArray(eventsData) ? eventsData : []);
+      } catch {
+        setEvents([]);
+      }
     }
   };
 
@@ -658,6 +676,36 @@ export function CommunityScreen() {
             </div>
           )}
         </div>
+
+        {/* Upcoming Events */}
+        {events && events.length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Upcoming Events</h2>
+            <div className="space-y-3">
+              {events.map((event, idx) => (
+                <Card key={idx} className="p-4 hover:shadow-md transition-shadow">
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Calendar className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-sm">{event.title}</h3>
+                      <p className="text-xs text-muted-foreground mt-1">{event.location}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(event.eventDate).toLocaleDateString()}
+                        </p>
+                        <p className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                          {event.category}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Engagement Message */}
         <Card className="p-6 text-center">

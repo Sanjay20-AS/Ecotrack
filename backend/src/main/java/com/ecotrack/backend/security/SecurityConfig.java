@@ -44,6 +44,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/signup", "/api/users/login", "/api/users/reset-password").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/geocode", "/api/geocode/**").permitAll()
+                .requestMatchers("/api/events", "/api/events/**").permitAll()
                 // All other API endpoints require authentication
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()

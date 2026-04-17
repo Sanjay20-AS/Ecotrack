@@ -414,28 +414,37 @@ public class WasteTrackingController {
 
     @GetMapping("/analytics/user/{userId}")
     public ResponseEntity<Map<String, Object>> getUserAnalytics(@PathVariable Long userId, 
-                                                               @RequestParam(defaultValue = "month") String timeRange) {
+                                                               @RequestParam(defaultValue = "month") String timeRange,
+                                                               @RequestParam(required = false) String startDate,
+                                                               @RequestParam(required = false) String endDate) {
         try {
             List<Waste> userWaste = wasteRepository.findByUserId(userId);
             
             // Calculate date range
-            LocalDateTime endDate = LocalDateTime.now();
-            LocalDateTime startDate;
+            LocalDateTime calcEndDate;
+            LocalDateTime calcStartDate;
             
-            switch (timeRange.toLowerCase()) {
-                case "week":
-                    startDate = endDate.minus(7, ChronoUnit.DAYS);
-                    break;
-                case "year":
-                    startDate = endDate.minus(1, ChronoUnit.YEARS);
-                    break;
-                default: // month — current calendar month
-                    startDate = YearMonth.now().atDay(1).atStartOfDay();
+            // If explicit dates provided, use them; otherwise calculate from timeRange
+            if (startDate != null && endDate != null) {
+                try {
+                    calcStartDate = LocalDate.parse(startDate).atStartOfDay();
+                    calcEndDate = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
+                } catch (Exception e) {
+                    calcEndDate = LocalDateTime.now();
+                    calcStartDate = calculateStartDate(timeRange, calcEndDate);
+                }
+            } else {
+                calcEndDate = LocalDateTime.now();
+                calcStartDate = calculateStartDate(timeRange, calcEndDate);
             }
+            
+            // Create final copies for lambda expressions
+            final LocalDateTime filterStartDate = calcStartDate;
+            final LocalDateTime filterEndDate = calcEndDate;
             
             // Filter waste entries by date range
             List<Waste> filteredWaste = userWaste.stream()
-                    .filter(waste -> waste.getCreatedAt().isAfter(startDate))
+                    .filter(waste -> waste.getCreatedAt().isAfter(filterStartDate) && waste.getCreatedAt().isBefore(filterEndDate))
                     .collect(Collectors.toList());
             
             // Calculate statistics
@@ -456,9 +465,9 @@ public class WasteTrackingController {
                     ));
             
             // Calculate previous period for comparison
-            LocalDateTime prevStartDate = startDate.minus(
-                    ChronoUnit.DAYS.between(startDate, endDate), ChronoUnit.DAYS);
-            LocalDateTime prevEndDate = startDate;
+            long daysBetween = ChronoUnit.DAYS.between(calcStartDate, calcEndDate);
+            LocalDateTime prevEndDate = calcStartDate;
+            LocalDateTime prevStartDate = prevEndDate.minus(daysBetween, ChronoUnit.DAYS);
             
             List<Waste> previousWaste = userWaste.stream()
                     .filter(waste -> waste.getCreatedAt().isAfter(prevStartDate) && waste.getCreatedAt().isBefore(prevEndDate))
@@ -478,8 +487,8 @@ public class WasteTrackingController {
             analytics.put("wasteByStatus", wasteByStatus);
             analytics.put("changePercentage", Math.round(changePercentage * 100.0) / 100.0);
             analytics.put("timeRange", timeRange);
-            analytics.put("startDate", startDate);
-            analytics.put("endDate", endDate);
+            analytics.put("startDate", calcStartDate);
+            analytics.put("endDate", calcEndDate);
             analytics.put("co2Saved", Math.round(calculateCO2Saved(filteredWaste) * 100.0) / 100.0);
             
             return ResponseEntity.ok(analytics);
@@ -489,77 +498,137 @@ public class WasteTrackingController {
             return ResponseEntity.badRequest().body(Map.of("error", "Failed to get user analytics: " + e.getMessage()));
         }
     }
+    
+    private LocalDateTime calculateStartDate(String timeRange, LocalDateTime endDate) {
+        switch (timeRange.toLowerCase()) {
+            case "week":
+                return endDate.minus(7, ChronoUnit.DAYS);
+            case "year":
+                return endDate.minus(1, ChronoUnit.YEARS);
+            default: // month — current calendar month
+                return YearMonth.now().atDay(1).atStartOfDay();
+        }
+    }
 
     @GetMapping("/analytics/trends/{userId}")
     public ResponseEntity<Map<String, Object>> getUserTrends(@PathVariable Long userId,
-                                                            @RequestParam(defaultValue = "month") String timeRange) {
+                                                            @RequestParam(defaultValue = "month") String timeRange,
+                                                            @RequestParam(required = false) String startDate,
+                                                            @RequestParam(required = false) String endDate) {
         try {
             List<Waste> userWaste = wasteRepository.findByUserId(userId);
             
-            LocalDateTime endDate = LocalDateTime.now();
-            LocalDateTime startDate;
+            LocalDateTime calcEndDate;
+            LocalDateTime calcStartDate;
             int periods;
             String periodLabel;
             
-            switch (timeRange.toLowerCase()) {
-                case "week":
-                    startDate = endDate.minus(7, ChronoUnit.DAYS);
-                    periods = 7;
-                    periodLabel = "Day";
-                    break;
-                case "year":
-                    startDate = endDate.minus(12, ChronoUnit.MONTHS);
-                    periods = 12;
-                    periodLabel = "Month";
-                    break;
-                default: // month — calendar weeks of current month
-                    YearMonth currentMonth = YearMonth.now();
-                    startDate = currentMonth.atDay(1).atStartOfDay();
-                    int daysInMonth = currentMonth.lengthOfMonth();
-                    periods = (int) Math.ceil(daysInMonth / 7.0);
-                    periodLabel = "Week";
+            // If explicit dates provided, use them
+            if (startDate != null && endDate != null) {
+                try {
+                    calcStartDate = LocalDate.parse(startDate).atStartOfDay();
+                    calcEndDate = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
+                    
+                    // Determine periods based on date range
+                    long daysBetween = ChronoUnit.DAYS.between(calcStartDate, calcEndDate);
+                    if (daysBetween <= 7) {
+                        periods = (int) daysBetween;
+                        periodLabel = "Day";
+                    } else if (daysBetween <= 35) {
+                        periods = (int) Math.ceil(daysBetween / 7.0);
+                        periodLabel = "Week";
+                    } else {
+                        periods = (int) Math.ceil(daysBetween / 30.0);
+                        periodLabel = "Month";
+                    }
+                } catch (Exception e) {
+                    calcEndDate = LocalDateTime.now();
+                    calcStartDate = calculateStartDateForTrends(timeRange, calcEndDate);
+                    Object[] periodInfo = getPeriodInfo(timeRange);
+                    periods = (int) periodInfo[0];
+                    periodLabel = (String) periodInfo[1];
+                }
+            } else {
+                calcEndDate = LocalDateTime.now();
+                calcStartDate = calculateStartDateForTrends(timeRange, calcEndDate);
+                Object[] periodInfo = getPeriodInfo(timeRange);
+                periods = (int) periodInfo[0];
+                periodLabel = (String) periodInfo[1];
             }
             
             // Create time series data
             List<Map<String, Object>> trendData = new java.util.ArrayList<>();
             
-            for (int i = 0; i < periods; i++) {
-                LocalDateTime periodStart, periodEnd;
-                String label;
-                
-                if (timeRange.equals("week")) {
-                    periodStart = startDate.plus(i, ChronoUnit.DAYS);
-                    periodEnd = periodStart.plus(1, ChronoUnit.DAYS);
-                    label = periodStart.getDayOfWeek().toString().substring(0, 3);
-                } else if (timeRange.equals("year")) {
-                    periodStart = startDate.plus(i, ChronoUnit.MONTHS);
-                    periodEnd = periodStart.plus(1, ChronoUnit.MONTHS);
-                    label = periodStart.getMonth().toString().substring(0, 3);
-                } else {
-                    // Calendar weeks: Week 1 = 1-7, Week 2 = 8-14, etc.
-                    YearMonth cm = YearMonth.now();
-                    int dayStart = i * 7 + 1;
-                    int dayEnd = Math.min(dayStart + 7, cm.lengthOfMonth() + 1);
-                    periodStart = cm.atDay(dayStart).atStartOfDay();
-                    periodEnd = cm.atDay(Math.min(dayEnd, cm.lengthOfMonth())).atStartOfDay().plusDays(dayEnd > cm.lengthOfMonth() ? 0 : 0);
-                    periodEnd = cm.atDay(Math.min(dayEnd - 1, cm.lengthOfMonth())).atTime(23, 59, 59);
-                    label = "Week " + (i + 1);
+            if (timeRange.equals("week")) {
+                // Daily breakdown for a week
+                for (int i = 0; i < periods; i++) {
+                    final LocalDateTime periodStart = calcStartDate.plus(i, ChronoUnit.DAYS);
+                    final LocalDateTime periodEnd = periodStart.plus(1, ChronoUnit.DAYS);
+                    String label = periodStart.getDayOfWeek().toString().substring(0, 3);
+                    
+                    double periodWaste = userWaste.stream()
+                            .filter(waste -> waste.getCreatedAt().isAfter(periodStart) && waste.getCreatedAt().isBefore(periodEnd))
+                            .mapToDouble(Waste::getQuantity)
+                            .sum();
+                    
+                    Map<String, Object> periodData = new HashMap<>();
+                    periodData.put("period", label);
+                    periodData.put("waste", Math.round(periodWaste * 100.0) / 100.0);
+                    periodData.put("startDate", periodStart);
+                    periodData.put("endDate", periodEnd);
+                    trendData.add(periodData);
                 }
-
-                final LocalDateTime pStart = periodStart;
-                final LocalDateTime pEnd = periodEnd;
-                double periodWaste = userWaste.stream()
-                        .filter(waste -> waste.getCreatedAt().isAfter(pStart) && waste.getCreatedAt().isBefore(pEnd))
-                        .mapToDouble(Waste::getQuantity)
-                        .sum();
+            } else if (timeRange.equals("year")) {
+                // Monthly breakdown for a year
+                for (int i = 0; i < periods; i++) {
+                    final LocalDateTime periodStart = calcStartDate.plus(i, ChronoUnit.MONTHS);
+                    final LocalDateTime periodEnd = periodStart.plus(1, ChronoUnit.MONTHS);
+                    String label = periodStart.getMonth().toString().substring(0, 3);
+                    
+                    double periodWaste = userWaste.stream()
+                            .filter(waste -> waste.getCreatedAt().isAfter(periodStart) && waste.getCreatedAt().isBefore(periodEnd))
+                            .mapToDouble(Waste::getQuantity)
+                            .sum();
+                    
+                    Map<String, Object> periodData = new HashMap<>();
+                    periodData.put("period", label);
+                    periodData.put("waste", Math.round(periodWaste * 100.0) / 100.0);
+                    periodData.put("startDate", periodStart);
+                    periodData.put("endDate", periodEnd);
+                    trendData.add(periodData);
+                }
+            } else { 
+                // Weekly breakdown for a month
+                YearMonth targetMonth = null;
+                if (startDate != null && endDate != null) {
+                    targetMonth = YearMonth.of(calcStartDate.getYear(), calcStartDate.getMonth());
+                } else {
+                    targetMonth = YearMonth.now();
+                }
                 
-                Map<String, Object> periodData = new HashMap<>();
-                periodData.put("period", label);
-                periodData.put("waste", Math.round(periodWaste * 100.0) / 100.0);
-                periodData.put("startDate", periodStart);
-                periodData.put("endDate", periodEnd);
+                int daysInMonth = targetMonth.lengthOfMonth();
+                int weeksInMonth = (int) Math.ceil(daysInMonth / 7.0);
                 
-                trendData.add(periodData);
+                for (int i = 0; i < weeksInMonth; i++) {
+                    int dayStart = i * 7 + 1;
+                    int dayEnd = Math.min(dayStart + 6, daysInMonth);
+                    
+                    final LocalDateTime periodStart = targetMonth.atDay(dayStart).atStartOfDay();
+                    final LocalDateTime periodEnd = targetMonth.atDay(dayEnd).atTime(23, 59, 59);
+                    String label = "Week " + (i + 1);
+                    
+                    double periodWaste = userWaste.stream()
+                            .filter(waste -> waste.getCreatedAt().isAfter(periodStart) && waste.getCreatedAt().isBefore(periodEnd))
+                            .mapToDouble(Waste::getQuantity)
+                            .sum();
+                    
+                    Map<String, Object> periodData = new HashMap<>();
+                    periodData.put("period", label);
+                    periodData.put("waste", Math.round(periodWaste * 100.0) / 100.0);
+                    periodData.put("startDate", periodStart);
+                    periodData.put("endDate", periodEnd);
+                    trendData.add(periodData);
+                }
             }
             
             Map<String, Object> trends = new HashMap<>();
@@ -572,6 +641,31 @@ public class WasteTrackingController {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body(Map.of("error", "Failed to get user trends: " + e.getMessage()));
+        }
+    }
+    
+    private LocalDateTime calculateStartDateForTrends(String timeRange, LocalDateTime endDate) {
+        switch (timeRange.toLowerCase()) {
+            case "week":
+                return endDate.minus(7, ChronoUnit.DAYS);
+            case "year":
+                return endDate.minus(12, ChronoUnit.MONTHS);
+            default: // month
+                return YearMonth.now().atDay(1).atStartOfDay();
+        }
+    }
+    
+    private Object[] getPeriodInfo(String timeRange) {
+        switch (timeRange.toLowerCase()) {
+            case "week":
+                return new Object[]{7, "Day"};
+            case "year":
+                return new Object[]{12, "Month"};
+            default:
+                YearMonth currentMonth = YearMonth.now();
+                int daysInMonth = currentMonth.lengthOfMonth();
+                int weeks = (int) Math.ceil(daysInMonth / 7.0);
+                return new Object[]{weeks, "Week"};
         }
     }
 
@@ -614,21 +708,34 @@ public class WasteTrackingController {
 
     @GetMapping("/analytics/collector/{collectorId}")
     public ResponseEntity<Map<String, Object>> getCollectorAnalytics(@PathVariable Long collectorId,
-                                                                     @RequestParam(defaultValue = "month") String timeRange) {
+                                                                     @RequestParam(defaultValue = "month") String timeRange,
+                                                                     @RequestParam(required = false) String startDate,
+                                                                     @RequestParam(required = false) String endDate) {
         try {
             List<Waste> collectedWaste = wasteRepository.findByCollectedById(collectorId);
 
-            LocalDateTime endDate = LocalDateTime.now();
-            LocalDateTime startDate;
+            LocalDateTime calcEndDate;
+            LocalDateTime calcStartDate;
 
-            switch (timeRange.toLowerCase()) {
-                case "week":  startDate = endDate.minus(7, ChronoUnit.DAYS);  break;
-                case "year":  startDate = endDate.minus(1, ChronoUnit.YEARS); break;
-                default:      startDate = YearMonth.now().atDay(1).atStartOfDay();
+            if (startDate != null && endDate != null) {
+                try {
+                    calcStartDate = LocalDate.parse(startDate).atStartOfDay();
+                    calcEndDate = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
+                } catch (Exception e) {
+                    calcEndDate = LocalDateTime.now();
+                    calcStartDate = calculateStartDate(timeRange, calcEndDate);
+                }
+            } else {
+                calcEndDate = LocalDateTime.now();
+                calcStartDate = calculateStartDate(timeRange, calcEndDate);
             }
 
+            // Create final copies for lambda expressions
+            final LocalDateTime filterStartDate = calcStartDate;
+            final LocalDateTime filterEndDate = calcEndDate;
+
             List<Waste> filtered = collectedWaste.stream()
-                    .filter(w -> w.getUpdatedAt() != null && w.getUpdatedAt().isAfter(startDate))
+                    .filter(w -> w.getUpdatedAt() != null && w.getUpdatedAt().isAfter(filterStartDate) && w.getUpdatedAt().isBefore(filterEndDate))
                     .collect(Collectors.toList());
 
             double totalWaste = filtered.stream().mapToDouble(Waste::getQuantity).sum();
@@ -640,10 +747,10 @@ public class WasteTrackingController {
                     .collect(Collectors.groupingBy(Waste::getStatus, Collectors.counting()));
 
             // Previous period comparison
-            long daysBetween = ChronoUnit.DAYS.between(startDate, endDate);
-            LocalDateTime prevStart = startDate.minus(daysBetween, ChronoUnit.DAYS);
+            long daysBetween = ChronoUnit.DAYS.between(calcStartDate, calcEndDate);
+            LocalDateTime prevStart = calcStartDate.minus(daysBetween, ChronoUnit.DAYS);
             double previousTotal = collectedWaste.stream()
-                    .filter(w -> w.getUpdatedAt() != null && w.getUpdatedAt().isAfter(prevStart) && w.getUpdatedAt().isBefore(startDate))
+                    .filter(w -> w.getUpdatedAt() != null && w.getUpdatedAt().isAfter(prevStart) && w.getUpdatedAt().isBefore(filterStartDate))
                     .mapToDouble(Waste::getQuantity).sum();
             double changePercentage = previousTotal > 0 ? ((totalWaste - previousTotal) / previousTotal) * 100 : 0;
 
@@ -654,8 +761,8 @@ public class WasteTrackingController {
             analytics.put("wasteByStatus", wasteByStatus);
             analytics.put("changePercentage", Math.round(changePercentage * 100.0) / 100.0);
             analytics.put("timeRange", timeRange);
-            analytics.put("startDate", startDate);
-            analytics.put("endDate", endDate);
+            analytics.put("startDate", calcStartDate);
+            analytics.put("endDate", calcEndDate);
             analytics.put("co2Saved", Math.round(calculateCO2Saved(filtered) * 100.0) / 100.0);
 
             return ResponseEntity.ok(analytics);
@@ -667,66 +774,111 @@ public class WasteTrackingController {
 
     @GetMapping("/analytics/collector-trends/{collectorId}")
     public ResponseEntity<Map<String, Object>> getCollectorTrends(@PathVariable Long collectorId,
-                                                                   @RequestParam(defaultValue = "month") String timeRange) {
+                                                                   @RequestParam(defaultValue = "month") String timeRange,
+                                                                   @RequestParam(required = false) String startDate,
+                                                                   @RequestParam(required = false) String endDate) {
         try {
             List<Waste> collectedWaste = wasteRepository.findByCollectedById(collectorId);
 
-            LocalDateTime endDate = LocalDateTime.now();
-            LocalDateTime startDate;
+            LocalDateTime calcEndDate;
+            LocalDateTime calcStartDate;
             int periods;
             String periodLabel;
 
-            switch (timeRange.toLowerCase()) {
-                case "week":
-                    startDate = endDate.minus(7, ChronoUnit.DAYS);
-                    periods = 7; periodLabel = "Day"; break;
-                case "year":
-                    startDate = endDate.minus(12, ChronoUnit.MONTHS);
-                    periods = 12; periodLabel = "Month"; break;
-                default:
-                    YearMonth currentMonth2 = YearMonth.now();
-                    startDate = currentMonth2.atDay(1).atStartOfDay();
-                    int daysInMonth2 = currentMonth2.lengthOfMonth();
-                    periods = (int) Math.ceil(daysInMonth2 / 7.0);
-                    periodLabel = "Week";
+            if (startDate != null && endDate != null) {
+                try {
+                    calcStartDate = LocalDate.parse(startDate).atStartOfDay();
+                    calcEndDate = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
+                    
+                    long daysBetween = ChronoUnit.DAYS.between(calcStartDate, calcEndDate);
+                    if (daysBetween <= 7) {
+                        periods = (int) daysBetween;
+                        periodLabel = "Day";
+                    } else if (daysBetween <= 35) {
+                        periods = (int) Math.ceil(daysBetween / 7.0);
+                        periodLabel = "Week";
+                    } else {
+                        periods = (int) Math.ceil(daysBetween / 30.0);
+                        periodLabel = "Month";
+                    }
+                } catch (Exception e) {
+                    calcEndDate = LocalDateTime.now();
+                    calcStartDate = calculateStartDateForTrends(timeRange, calcEndDate);
+                    Object[] info = getPeriodInfo(timeRange);
+                    periods = (int) info[0];
+                    periodLabel = (String) info[1];
+                }
+            } else {
+                calcEndDate = LocalDateTime.now();
+                calcStartDate = calculateStartDateForTrends(timeRange, calcEndDate);
+                Object[] info = getPeriodInfo(timeRange);
+                periods = (int) info[0];
+                periodLabel = (String) info[1];
             }
 
             List<Map<String, Object>> trendData = new java.util.ArrayList<>();
 
-            for (int i = 0; i < periods; i++) {
-                LocalDateTime periodStart, periodEnd;
-                String label;
+            if (timeRange.equals("week")) {
+                for (int i = 0; i < periods; i++) {
+                    final LocalDateTime periodStart = calcStartDate.plus(i, ChronoUnit.DAYS);
+                    final LocalDateTime periodEnd = periodStart.plus(1, ChronoUnit.DAYS);
+                    String label = periodStart.getDayOfWeek().toString().substring(0, 3);
+                    
+                    double periodWaste = collectedWaste.stream()
+                            .filter(w -> w.getUpdatedAt() != null && 
+                                    w.getUpdatedAt().isAfter(periodStart) && w.getUpdatedAt().isBefore(periodEnd))
+                            .mapToDouble(Waste::getQuantity).sum();
 
-                if (timeRange.equals("week")) {
-                    periodStart = startDate.plus(i, ChronoUnit.DAYS);
-                    periodEnd = periodStart.plus(1, ChronoUnit.DAYS);
-                    label = periodStart.getDayOfWeek().toString().substring(0, 3);
-                } else if (timeRange.equals("year")) {
-                    periodStart = startDate.plus(i, ChronoUnit.MONTHS);
-                    periodEnd = periodStart.plus(1, ChronoUnit.MONTHS);
-                    label = periodStart.getMonth().toString().substring(0, 3);
-                } else {
-                    YearMonth cm2 = YearMonth.now();
-                    int dayStart = i * 7 + 1;
-                    int dayEnd = Math.min(dayStart + 7, cm2.lengthOfMonth() + 1);
-                    periodStart = cm2.atDay(dayStart).atStartOfDay();
-                    periodEnd = cm2.atDay(Math.min(dayEnd - 1, cm2.lengthOfMonth())).atTime(23, 59, 59);
-                    label = "Week " + (i + 1);
+                    Map<String, Object> periodData = new HashMap<>();
+                    periodData.put("period", label);
+                    periodData.put("waste", Math.round(periodWaste * 100.0) / 100.0);
+                    periodData.put("startDate", periodStart);
+                    periodData.put("endDate", periodEnd);
+                    trendData.add(periodData);
                 }
+            } else if (timeRange.equals("year")) {
+                for (int i = 0; i < periods; i++) {
+                    final LocalDateTime periodStart = calcStartDate.plus(i, ChronoUnit.MONTHS);
+                    final LocalDateTime periodEnd = periodStart.plus(1, ChronoUnit.MONTHS);
+                    String label = periodStart.getMonth().toString().substring(0, 3);
+                    
+                    double periodWaste = collectedWaste.stream()
+                            .filter(w -> w.getUpdatedAt() != null && 
+                                    w.getUpdatedAt().isAfter(periodStart) && w.getUpdatedAt().isBefore(periodEnd))
+                            .mapToDouble(Waste::getQuantity).sum();
 
-                final LocalDateTime pStart = periodStart;
-                final LocalDateTime pEnd = periodEnd;
-                double periodWaste = collectedWaste.stream()
-                        .filter(w -> w.getUpdatedAt() != null &&
-                                w.getUpdatedAt().isAfter(pStart) && w.getUpdatedAt().isBefore(pEnd))
-                        .mapToDouble(Waste::getQuantity).sum();
+                    Map<String, Object> periodData = new HashMap<>();
+                    periodData.put("period", label);
+                    periodData.put("waste", Math.round(periodWaste * 100.0) / 100.0);
+                    periodData.put("startDate", periodStart);
+                    periodData.put("endDate", periodEnd);
+                    trendData.add(periodData);
+                }
+            } else {
+                YearMonth targetMonth = YearMonth.of(calcStartDate.getYear(), calcStartDate.getMonth());
+                int daysInMonth = targetMonth.lengthOfMonth();
+                int weeksInMonth = (int) Math.ceil(daysInMonth / 7.0);
+                
+                for (int i = 0; i < weeksInMonth; i++) {
+                    int dayStart = i * 7 + 1;
+                    int dayEnd = Math.min(dayStart + 6, daysInMonth);
+                    
+                    final LocalDateTime periodStart = targetMonth.atDay(dayStart).atStartOfDay();
+                    final LocalDateTime periodEnd = targetMonth.atDay(dayEnd).atTime(23, 59, 59);
+                    String label = "Week " + (i + 1);
+                    
+                    double periodWaste = collectedWaste.stream()
+                            .filter(w -> w.getUpdatedAt() != null && 
+                                    w.getUpdatedAt().isAfter(periodStart) && w.getUpdatedAt().isBefore(periodEnd))
+                            .mapToDouble(Waste::getQuantity).sum();
 
-                Map<String, Object> periodData = new HashMap<>();
-                periodData.put("period", label);
-                periodData.put("waste", Math.round(periodWaste * 100.0) / 100.0);
-                periodData.put("startDate", periodStart);
-                periodData.put("endDate", periodEnd);
-                trendData.add(periodData);
+                    Map<String, Object> periodData = new HashMap<>();
+                    periodData.put("period", label);
+                    periodData.put("waste", Math.round(periodWaste * 100.0) / 100.0);
+                    periodData.put("startDate", periodStart);
+                    periodData.put("endDate", periodEnd);
+                    trendData.add(periodData);
+                }
             }
 
             Map<String, Object> trends = new HashMap<>();

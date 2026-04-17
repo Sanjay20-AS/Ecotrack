@@ -155,16 +155,36 @@ export const wasteAPI = {
   deleteWaste: (id: number) => apiCall(`/waste/${id}`, 'DELETE'),
   
   // Analytics APIs
-  getUserAnalytics: (userId: number, timeRange: string = 'month') => 
-    apiCall(`/waste/analytics/user/${userId}?timeRange=${timeRange}`),
-  getUserTrends: (userId: number, timeRange: string = 'month') => 
-    apiCall(`/waste/analytics/trends/${userId}?timeRange=${timeRange}`),
+  getUserAnalytics: (userId: number, timeRange: string = 'month', startDate?: Date, endDate?: Date) => {
+    let endpoint = `/waste/analytics/user/${userId}?timeRange=${timeRange}`;
+    if (startDate && endDate) {
+      endpoint += `&startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`;
+    }
+    return apiCall(endpoint);
+  },
+  getUserTrends: (userId: number, timeRange: string = 'month', startDate?: Date, endDate?: Date) => {
+    let endpoint = `/waste/analytics/trends/${userId}?timeRange=${timeRange}`;
+    if (startDate && endDate) {
+      endpoint += `&startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`;
+    }
+    return apiCall(endpoint);
+  },
   getGlobalAnalytics: () => apiCall('/waste/analytics/global'),
   // Collector-specific analytics
-  getCollectorAnalytics: (collectorId: number, timeRange: string = 'month') =>
-    apiCall(`/waste/analytics/collector/${collectorId}?timeRange=${timeRange}`),
-  getCollectorTrends: (collectorId: number, timeRange: string = 'month') =>
-    apiCall(`/waste/analytics/collector-trends/${collectorId}?timeRange=${timeRange}`),
+  getCollectorAnalytics: (collectorId: number, timeRange: string = 'month', startDate?: Date, endDate?: Date) => {
+    let endpoint = `/waste/analytics/collector/${collectorId}?timeRange=${timeRange}`;
+    if (startDate && endDate) {
+      endpoint += `&startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`;
+    }
+    return apiCall(endpoint);
+  },
+  getCollectorTrends: (collectorId: number, timeRange: string = 'month', startDate?: Date, endDate?: Date) => {
+    let endpoint = `/waste/analytics/collector-trends/${collectorId}?timeRange=${timeRange}`;
+    if (startDate && endDate) {
+      endpoint += `&startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`;
+    }
+    return apiCall(endpoint);
+  },
   getCollectorDashboardStats: (collectorId: number) =>
     apiCall(`/waste/analytics/collector-dashboard/${collectorId}`),
   getCollectorHistory: (collectorId: number) =>
@@ -265,6 +285,19 @@ export const supportAPI = {
   submit: (data: { userId: number; subject: string; message: string }) =>
     apiCall('/support/tickets', 'POST', data),
   getTickets: (userId: number) => apiCall(`/support/tickets/user/${userId}`),
+};
+
+// Events APIs
+export const eventsAPI = {
+  getAllEvents: () => apiCall('/events'),
+  getUpcomingEvents: () => apiCall('/events/upcoming'),
+  getUpcomingEventsByLocation: (location: string) => apiCall(`/events/upcoming/location/${encodeURIComponent(location)}`),
+  getEventById: (id: number) => apiCall(`/events/${id}`),
+  getEventsByCategory: (category: string) => apiCall(`/events/upcoming/category/${encodeURIComponent(category)}`),
+  getEventsByLocationAndCategory: (location: string, category: string) => apiCall(`/events/upcoming/location/${encodeURIComponent(location)}/category/${encodeURIComponent(category)}`),
+  createEvent: (data: any) => apiCall('/events', 'POST', data),
+  updateEvent: (id: number, data: any) => apiCall(`/events/${id}`, 'PUT', data),
+  deleteEvent: (id: number) => apiCall(`/events/${id}`, 'DELETE'),
 };
 
 // File Upload API

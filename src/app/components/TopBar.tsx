@@ -145,6 +145,7 @@ export default function TopBar({
           "sticky top-0 z-30 w-full shrink-0",
           "border-b border-border/70 bg-background/75 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65",
           "pt-[max(0.35rem,env(safe-area-inset-top))]",
+          "shadow-sm shadow-black/[0.05]",
         )}
       >
         <div className="relative mx-auto max-w-lg px-4 pb-3 pt-1">

@@ -130,35 +130,34 @@ export function RewardsScreen() {
     <div className="min-h-screen bg-background pb-8">
       <TopBar variant="banner" title="Rewards" subtitle="Earn points by logging waste" />
 
-      {/* Points balance */}
-      <Card className="bg-card/95 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Available Points</p>
-              <p className="text-4xl font-bold text-primary">{availablePoints.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground mt-1">Total earned: {(points?.totalPoints ?? 0).toLocaleString()} pts</p>
-            </div>
-            <div className="text-right space-y-1">
-              <div className="text-xs text-muted-foreground">{(points?.totalKg ?? 0).toFixed(1)} kg tracked</div>
-              <div className="text-xs text-muted-foreground">{points?.entryCount ?? 0} entries</div>
-              <div className="text-xs text-muted-foreground">{(points?.co2Saved ?? 0).toFixed(1)} kg CO₂ saved</div>
-            </div>
-          </div>
-
-          {/* Next badge progress */}
-          {nextBadge && (
-            <div className="mt-4 pt-3 border-t border-border">
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-muted-foreground">Next: {nextBadge.icon} {nextBadge.name}</span>
-                <span className="font-medium">{Math.round(nextBadgeProgress)}%</span>
-              </div>
-              <Progress value={nextBadgeProgress} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1">{nextBadge.description}</p>
-            </div>
-          )}
-        </Card>
-
       <div className="mx-auto w-full max-w-lg px-4 py-5 space-y-5">
+        {/* Points balance */}
+        <Card className="bg-card/95 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Available Points</p>
+                <p className="text-4xl font-bold text-primary">{availablePoints.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total earned: {(points?.totalPoints ?? 0).toLocaleString()} pts</p>
+              </div>
+              <div className="text-right space-y-1">
+                <div className="text-xs text-muted-foreground">{(points?.totalKg ?? 0).toFixed(1)} kg tracked</div>
+                <div className="text-xs text-muted-foreground">{points?.entryCount ?? 0} entries</div>
+                <div className="text-xs text-muted-foreground">{(points?.co2Saved ?? 0).toFixed(1)} kg CO₂ saved</div>
+              </div>
+            </div>
+
+            {/* Next badge progress */}
+            {nextBadge && (
+              <div className="mt-4 pt-3 border-t border-border">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-muted-foreground">Next: {nextBadge.icon} {nextBadge.name}</span>
+                  <span className="font-medium">{Math.round(nextBadgeProgress)}%</span>
+                </div>
+                <Progress value={nextBadgeProgress} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-1">{nextBadge.description}</p>
+              </div>
+            )}
+          </Card>
         {/* How points work */}
         <Card className="p-4 bg-muted/30">
           <div className="flex items-center gap-2 mb-3">

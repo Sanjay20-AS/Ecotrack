@@ -48,7 +48,7 @@ export function AnalyticsScreen() {
 
   useEffect(() => {
     loadAllAnalytics();
-  }, [timeRange, wasteType]);
+  }, [timeRange, wasteType, currentDate]);
 
   const loadAllAnalytics = async () => {
     try {
@@ -64,14 +64,31 @@ export function AnalyticsScreen() {
 
       const uid = parseInt(userId);
 
+      // Build date range parameters
+      let startDate: Date;
+      let endDate: Date = new Date(currentDate);
+
+      if (timeRange === "week") {
+        startDate = new Date(currentDate);
+        startDate.setDate(currentDate.getDate() - currentDate.getDay());
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+      } else if (timeRange === "month") {
+        startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      } else { // year
+        startDate = new Date(currentDate.getFullYear(), 0, 1);
+        endDate = new Date(currentDate.getFullYear(), 11, 31);
+      }
+
       // Collectors use collector-specific analytics; donors use user analytics
       const [analytics, trends, global] = await Promise.all([
         userRole === "COLLECTOR"
-          ? wasteAPI.getCollectorAnalytics(uid, timeRange)
-          : wasteAPI.getUserAnalytics(uid, timeRange),
+          ? wasteAPI.getCollectorAnalytics(uid, timeRange, startDate, endDate)
+          : wasteAPI.getUserAnalytics(uid, timeRange, startDate, endDate),
         userRole === "COLLECTOR"
-          ? wasteAPI.getCollectorTrends(uid, timeRange)
-          : wasteAPI.getUserTrends(uid, timeRange),
+          ? wasteAPI.getCollectorTrends(uid, timeRange, startDate, endDate)
+          : wasteAPI.getUserTrends(uid, timeRange, startDate, endDate),
         wasteAPI.getGlobalAnalytics()
       ]);
 
@@ -144,7 +161,12 @@ export function AnalyticsScreen() {
   };
 
   const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+    const next = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1);
+    const today = new Date();
+    // Prevent navigating to future dates
+    if (next <= today) {
+      setCurrentDate(next);
+    }
   };
 
   const formatMonthYear = (date: Date) => {
@@ -235,6 +257,31 @@ export function AnalyticsScreen() {
             onClick={() => setTimeRange("year")}
           >
             Year
+          </Button>
+        </div>
+
+        {/* Navigation Controls */}
+        <div className="flex items-center justify-between px-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={previousMonth}
+            className="gap-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <span className="text-sm font-medium text-center flex-1">
+            {formatMonthYear(currentDate)}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={nextMonth}
+            className="gap-1"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 

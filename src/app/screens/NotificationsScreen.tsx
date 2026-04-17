@@ -43,7 +43,9 @@ export function NotificationsScreen() {
     if (!userId) return;
     try {
       const data = await notificationAPI.getUserNotifications(userId);
-      setNotifications(data);
+      // Handle paginated response
+      const notificationList = Array.isArray(data) ? data : data?.content || [];
+      setNotifications(notificationList);
     } catch {
       // errors handled by apiService
     } finally {

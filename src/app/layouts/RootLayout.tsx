@@ -11,6 +11,16 @@ export function RootLayout() {
   const [accountStatus, setAccountStatus] = useState<string>("ACTIVE");
   const [authenticated, setAuthenticated] = useState<boolean>(true);
 
+  // Initialize theme from localStorage on app load
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") || "light";
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     if (!userId) {
@@ -62,12 +72,6 @@ export function RootLayout() {
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
-      {userRole === "COLLECTOR" && accountStatus === "ACTIVE" && (
-        <div className="bg-primary text-primary-foreground text-center py-2.5 text-xs font-semibold tracking-wide flex items-center justify-center gap-2 px-3">
-          <Truck className="h-3.5 w-3.5 shrink-0 opacity-90" />
-          Collector mode — manage pickups and routes
-        </div>
-      )}
       {userRole === "COLLECTOR" && accountStatus === "PENDING_APPROVAL" && (
         <div className="bg-amber-500 text-white text-center py-2.5 text-xs font-semibold flex items-center justify-center gap-2 px-3">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />

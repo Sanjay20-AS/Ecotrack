@@ -1439,8 +1439,8 @@ export function TrackWasteScreen() {
 
       {/* Camera Modal */}
       {showCamera && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-          <div className="w-full h-full flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[60]">
+          <div className="w-full h-full flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]">
             {/* Camera Header */}
             <div className="flex justify-between items-center p-4 bg-black bg-opacity-50">
               <Button

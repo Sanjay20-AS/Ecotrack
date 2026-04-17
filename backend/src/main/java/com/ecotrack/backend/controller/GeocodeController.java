@@ -70,29 +70,34 @@ public class GeocodeController {
                     String addr = w.getLocationAddress();
                     if (addr == null || addr.isBlank()) continue;
                     // call Geoapify
-                    String url = "https://api.geoapify.com/v1/geocode/search?text=" + java.net.URLEncoder.encode(addr, "UTF-8") + "&apiKey=" + java.net.URLEncoder.encode(geoapifyKey, "UTF-8") + "&limit=1&lang=en";
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
-                    HttpEntity<Void> entity = new HttpEntity<>(headers);
-                    ResponseEntity<String> resp = rest.exchange(url, HttpMethod.GET, entity, String.class);
-                    if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
-                        try {
-                            JsonNode root = mapper.readTree(resp.getBody());
-                            JsonNode results = root.path("results");
-                            if (results.isArray() && results.size() > 0) {
-                                JsonNode prop = results.get(0).path("properties");
-                                double lat = prop.path("lat").asDouble(Double.NaN);
-                                double lon = prop.path("lon").asDouble(Double.NaN);
-                                if (!Double.isNaN(lat) && !Double.isNaN(lon)) {
-                                    w.setLocationLatitude(lat);
-                                    w.setLocationLongitude(lon);
-                                    wasteRepository.save(w);
-                                    updated.add(w);
+                    try {
+                        String url = "https://api.geoapify.com/v1/geocode/search?text=" + java.net.URLEncoder.encode(addr, "UTF-8") + "&apiKey=" + java.net.URLEncoder.encode(geoapifyKey, "UTF-8") + "&limit=1&lang=en";
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+                        HttpEntity<Void> entity = new HttpEntity<>(headers);
+                        ResponseEntity<String> resp = rest.exchange(url, HttpMethod.GET, entity, String.class);
+                        if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                            try {
+                                JsonNode root = mapper.readTree(resp.getBody());
+                                JsonNode results = root.path("results");
+                                if (results.isArray() && results.size() > 0) {
+                                    JsonNode prop = results.get(0).path("properties");
+                                    double lat = prop.path("lat").asDouble(Double.NaN);
+                                    double lon = prop.path("lon").asDouble(Double.NaN);
+                                    if (!Double.isNaN(lat) && !Double.isNaN(lon)) {
+                                        w.setLocationLatitude(lat);
+                                        w.setLocationLongitude(lon);
+                                        wasteRepository.save(w);
+                                        updated.add(w);
+                                    }
                                 }
+                            } catch (Exception ex) {
+                                // ignore parse errors per-item
                             }
-                        } catch (Exception ex) {
-                            // ignore parse errors per-item
                         }
+                    } catch (java.io.UnsupportedEncodingException ex) {
+                        // handle encoding error
+                        continue;
                     }
                 }
             } catch (NumberFormatException nfe) {

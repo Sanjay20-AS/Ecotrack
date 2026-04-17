@@ -111,13 +111,13 @@ export function HelpScreen() {
               <MessageCircle className="h-6 w-6 mx-auto text-primary mb-2" />
               <p className="text-sm font-medium">Chat Support</p>
             </Card>
-            <a href="mailto:support@ecotrack.com">
+            <a href="https://mail.google.com/mail/u/0/?view=cm&fs=1&to=support@ecotrack.com" target="_blank" rel="noopener noreferrer">
               <Card className="p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors h-full flex flex-col items-center justify-center">
                 <Mail className="h-6 w-6 mx-auto text-primary mb-2" />
                 <p className="text-sm font-medium">Email Us</p>
               </Card>
             </a>
-            <a href="tel:+15551234567">
+            <a href="tel:+918489737878">
               <Card className="p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors h-full flex flex-col items-center justify-center">
                 <Phone className="h-6 w-6 mx-auto text-primary mb-2" />
                 <p className="text-sm font-medium">Call Us</p>
@@ -209,11 +209,11 @@ export function HelpScreen() {
                 <p className="text-sm text-muted-foreground">support@ecotrack.com</p>
               </div>
             </a>
-            <a href="tel:+15551234567" className="flex gap-3 hover:opacity-75 transition-opacity">
+            <a href="tel:+918489737878" className="flex gap-3 hover:opacity-75 transition-opacity">
               <Phone className="h-5 w-5 text-primary flex-shrink-0" />
               <div>
                 <p className="font-medium text-sm">Phone</p>
-                <p className="text-sm text-muted-foreground">+1 (555) 123-4567</p>
+                <p className="text-sm text-muted-foreground">+91 8489737878</p>
               </div>
             </a>
             <div
@@ -224,7 +224,7 @@ export function HelpScreen() {
               <div>
                 <p className="font-medium text-sm">Live Chat</p>
                 <p className="text-sm text-muted-foreground">
-                  Available 9 AM - 9 PM EST, 7 days a week
+                  Available 9 AM - 9 PM IST, 7 days a week
                 </p>
               </div>
             </div>

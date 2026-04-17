@@ -5,7 +5,7 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
-import { wasteAPI, userAPI } from "../services/apiService";
+import { wasteAPI, userAPI, eventsAPI } from "../services/apiService";
 import TopBar from "../components/TopBar";
 
 const CO2_RATES: Record<string, number> = {
@@ -15,6 +15,89 @@ const CO2_RATES: Record<string, number> = {
   PAPER: 1.0,
   ORGANIC: 2.0,
 };
+
+const ECO_TIPS = [
+  {
+    title: "Repair Instead of Replace",
+    description: "Repair broken electronics instead of discarding them. Many issues can be fixed, extending the life of your devices and reducing e-waste.",
+  },
+  {
+    title: "Compost Food Waste",
+    description: "Start composting food scraps at home. Composting reduces methane emissions from landfills and creates nutrient-rich soil for your garden.",
+  },
+  {
+    title: "Use Reusable Shopping Bags",
+    description: "Switch to cloth or reusable bags for shopping. One reusable bag can replace hundreds of plastic bags over its lifetime.",
+  },
+  {
+    title: "Reduce Single-Use Plastics",
+    description: "Avoid single-use plastics like straws, cups, and utensils. Switching to reusable alternatives can save tons of plastic from oceans.",
+  },
+  {
+    title: "Buy Second-Hand Items",
+    description: "Purchase used electronics, furniture, and clothing. Buying second-hand extends product lifecycles and reduces manufacturing waste.",
+  },
+  {
+    title: "Conserve Water",
+    description: "Fix leaking taps and take shorter showers. Conserving water protects this precious resource and reduces your carbon footprint.",
+  },
+  {
+    title: "Choose Sustainable Fashion",
+    description: "Buy from sustainable brands and swap clothes with friends. The fashion industry generates massive waste—choose quality over quantity.",
+  },
+  {
+    title: "Plant a Tree",
+    description: "Trees absorb CO₂ and provide oxygen. Even planting one tree in your community can make a significant environmental impact.",
+  },
+  {
+    title: "Use Public Transport",
+    description: "Take buses, trains, or carpool instead of driving alone. Public transport reduces per-person carbon emissions significantly.",
+  },
+  {
+    title: "Recycle Properly",
+    description: "Learn your local recycling guidelines. Proper recycling ensures materials are processed correctly and not contaminated.",
+  },
+  {
+    title: "Donate Unused Items",
+    description: "Donate clothes, books, and electronics you no longer use. Donation gives items a second life and reduces landfill waste.",
+  },
+  {
+    title: "Use LED Bulbs",
+    description: "Switch to LED lighting. LEDs use 75% less energy than traditional bulbs and last much longer.",
+  },
+  {
+    title: "Reduce Food Waste",
+    description: "Plan meals and store food properly to minimize waste. Food waste in landfills produces harmful methane gas.",
+  },
+  {
+    title: "Support Local Farmers",
+    description: "Buy from local farmers' markets. Local produce requires less transportation, reducing carbon emissions and supporting your community.",
+  },
+  {
+    title: "Unplug Electronics",
+    description: "Unplug devices when not in use to reduce phantom power consumption. Even idle devices draw energy and increase your carbon footprint.",
+  },
+  {
+    title: "Use Natural Cleaning Products",
+    description: "Choose eco-friendly cleaning products. They're safer for your family and don't pollute waterways like chemical cleaners.",
+  },
+  {
+    title: "Reduce Meat Consumption",
+    description: "Eating less meat, especially beef, significantly reduces your carbon footprint. Try Meatless Mondays!",
+  },
+  {
+    title: "Collect Rainwater",
+    description: "Install a rainwater collection system for gardening. This conserves tap water and reduces utility bills.",
+  },
+  {
+    title: "Use Digital Billing",
+    description: "Switch to paperless billing and digital statements. Going digital saves trees and reduces paper waste.",
+  },
+  {
+    title: "Buy in Bulk",
+    description: "Purchase items in bulk to reduce packaging waste. Bulk buying minimizes single-use containers and saves money.",
+  },
+];
 
 export function HomeScreen() {
   const [user, setUser] = useState<any>(null);
@@ -27,6 +110,7 @@ export function HomeScreen() {
   });
   const [recentDonations, setRecentDonations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<any[]>([]);
 
   const userId = parseInt(localStorage.getItem("userId") || "0");
 
@@ -36,6 +120,24 @@ export function HomeScreen() {
       const role = localStorage.getItem("userRole") || "DONOR";
       setUserRole(role);
       if (userData) setUser(JSON.parse(userData));
+
+      // Fetch events - try to get location-based events, fallback to all upcoming
+      try {
+        // Try to get user's location from localStorage or profile
+        let location = localStorage.getItem("userLocation") || "Coimbatore";
+        
+        const eventsData = await eventsAPI.getUpcomingEventsByLocation(location);
+        setEvents(Array.isArray(eventsData) ? eventsData : []);
+      } catch (err) {
+        console.error("Failed to load location-based events:", err);
+        // Fallback to general upcoming events
+        try {
+          const eventsData = await eventsAPI.getUpcomingEvents();
+          setEvents(Array.isArray(eventsData) ? eventsData : []);
+        } catch {
+          setEvents([]);
+        }
+      }
 
       if (userId) {
         const waste = await wasteAPI.getWasteByUserId(userId);
@@ -164,11 +266,6 @@ export function HomeScreen() {
     return <Navigate to="/app/collector-dashboard" replace />;
   }
 
-  const events = [
-    { title: "E-waste Collection Drive", date: "Dec 20, 2025", location: "Community Center" },
-    { title: "Composting Workshop", date: "Dec 25, 2025", location: "Green Park" },
-  ];
-
   return (
     <div className="min-h-screen bg-background pb-8">
       <TopBar variant="banner" title="Home" subtitle="Your impact at a glance" />
@@ -285,46 +382,56 @@ export function HomeScreen() {
         </div>
 
         {/* Eco Tip */}
-        <Card className="bg-accent/10 border-accent/20 p-4">
-          <div className="flex gap-3">
-            <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
-              <Lightbulb className="h-5 w-5 text-accent-foreground" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold mb-1">Daily Eco-Tip</h3>
-              <p className="text-sm text-muted-foreground">
-                Repair broken electronics instead of discarding them. Many issues can be fixed,
-                extending the life of your devices and reducing e-waste.
-              </p>
-            </div>
-          </div>
-        </Card>
+        {(() => {
+          const today = new Date();
+          const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
+          const tip = ECO_TIPS[dayOfYear % ECO_TIPS.length];
+          return (
+            <Card className="bg-accent/10 border-accent/20 p-4">
+              <div className="flex gap-3">
+                <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
+                  <Lightbulb className="h-5 w-5 text-accent-foreground" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">Daily Eco-Tip</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {tip.description}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          );
+        })()}
 
         {/* Upcoming Events */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Upcoming Events</h2>
-            <Link to="/app/community" className="text-sm text-primary hover:underline">
-              View all
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {events.map((event, idx) => (
-              <Card key={idx} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-medium mb-1">{event.title}</h3>
-                    <p className="text-sm text-muted-foreground">{event.location}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{event.date}</p>
+        {events && events.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Upcoming Events</h2>
+              <Link to="/app/community" className="text-sm text-primary hover:underline">
+                View all
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {events.slice(0, 2).map((event, idx) => (
+                <Card key={idx} className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-medium mb-1">{event.title || event.name}</h3>
+                      <p className="text-sm text-muted-foreground">{event.location}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {event.date || new Date(event.eventDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="icon">
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="icon">
-                    <ChevronRight className="h-5 w-5" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Explore — Marketplace & Education */}
         <div>

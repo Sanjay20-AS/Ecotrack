@@ -47,6 +47,17 @@ export function SettingsScreen() {
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
 
+  // Apply theme to document
+  useEffect(() => {
+    if (settings.theme === "dark") {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [settings.theme]);
+
   const persist = async (updated: typeof settings) => {
     try {
       await settingsAPI.save(userId, {
