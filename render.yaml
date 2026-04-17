@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: ecotrack-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    region: oregon
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DATABASE_URL
+        fromService:
+          type: pserv
+          name: ecotrack-db
+          property: connectionString
+      - key: DATABASE_USERNAME
+        value: ecotrack
+      - key: DATABASE_PASSWORD
+        fromService:
+          type: pserv
+          name: ecotrack-db
+          envKey: POSTGRES_PASSWORD
+      - key: CORS_ORIGINS
+        value: https://your-vercel-domain.vercel.app
+
+  - type: pserv
+    name: ecotrack-db
+    env: postgres
+    plan: free
+    ipAllowList: []
+    envVars:
+      - key: POSTGRES_DB
+        value: ecotrack
+      - key: POSTGRES_USER
+        value: ecotrack
