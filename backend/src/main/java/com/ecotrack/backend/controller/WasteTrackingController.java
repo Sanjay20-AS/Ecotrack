@@ -72,7 +72,7 @@ public class WasteTrackingController {
     @Autowired
     private WasteClassificationRepository wasteClassificationRepository;
 
-    @Value("${groq.api.key}")
+    @Value("${groq.api.key:}")
     private String groqApiKey;
 
     @GetMapping

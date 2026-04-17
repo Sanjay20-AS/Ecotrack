@@ -21,6 +21,15 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   ADVANCED: "bg-red-100 text-red-700",
 };
 
+// Category-based default images
+const DEFAULT_IMAGES: Record<string, string> = {
+  WASTE_MANAGEMENT: "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800",
+  RECYCLING: "https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=800",
+  COMPOSTING: "https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=800",
+  "E-WASTE": "https://images.unsplash.com/photo-1591290619297-8fa18b4e28db?w=800",
+  TIPS: "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800",
+};
+
 interface Article {
   id: number;
   title: string;
@@ -61,18 +70,40 @@ export function EducationScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Fix known-broken seeded URLs (runtime mapping for already-seeded DB entries)
+  // Fix known-broken seeded URLs and add default images
   useEffect(() => {
     if (!articles || articles.length === 0) return;
     const fixed = articles.map(a => {
-      if (a.thumbnailUrl && a.thumbnailUrl.includes('photo-1542601906897-ecd432fcfb7d')) {
-        return { ...a, thumbnailUrl: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800' };
+      let url = a.thumbnailUrl;
+      // Fix broken Unsplash URLs
+      if (url && url.includes('photo-1542601906897-ecd432fcfb7d')) {
+        url = 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800';
       }
-      return a;
+      // Use default if missing
+      if (!url) {
+        url = DEFAULT_IMAGES[a.category] || DEFAULT_IMAGES.TIPS;
+      }
+      return { ...a, thumbnailUrl: url };
     });
     // Only update if any change
     if (JSON.stringify(fixed) !== JSON.stringify(articles)) setArticles(fixed);
   }, [articles]);
+
+  // Fix featured articles with default images
+  useEffect(() => {
+    if (!featured || featured.length === 0) return;
+    const fixed = featured.map(a => {
+      let url = a.thumbnailUrl;
+      if (url && url.includes('photo-1542601906897-ecd432fcfb7d')) {
+        url = 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800';
+      }
+      if (!url) {
+        url = DEFAULT_IMAGES[a.category] || DEFAULT_IMAGES.TIPS;
+      }
+      return { ...a, thumbnailUrl: url };
+    });
+    if (JSON.stringify(fixed) !== JSON.stringify(featured)) setFeatured(fixed);
+  }, [featured]);
 
   const handleExpand = async (article: Article) => {
     if (expandedId === article.id) {

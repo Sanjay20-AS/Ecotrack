@@ -14,7 +14,7 @@ public class CarbonFootprintSummary {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
+    @Column(name = "month_value", nullable = false)
     private int month;
 
     @Column(nullable = false)
