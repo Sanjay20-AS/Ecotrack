@@ -93,15 +93,19 @@ spring.datasource.password=
 
 ### Step 3: Configure Railway Environment Variables
 
-After deployment starts, go to your Railway project:
+After deployment starts, Railway will auto-detect the Dockerfile and build the image.
 
-1. **Settings** tab → **Variables**
-2. **Add the following variables:**
+### Step 3: Configure Database
+
+1. **In your Railway project dashboard**: Click **+ Add**
+2. Select **Database** → **MySQL**
+3. Railway will auto-create a MySQL instance and set the `DATABASE_URL` variable automatically ✅
+
+### Step 4: Add Environment Variables
+
+In Railway project settings, go to **Variables** and add these (DATABASE_URL is auto-set):
 
 ```
-DATABASE_URL=your-mysql-url
-DB_USER=your-mysql-user
-DB_PASSWORD=your-mysql-password
 SPRING_MAIL_HOST=smtp.gmail.com
 SPRING_MAIL_PORT=587
 SPRING_MAIL_USERNAME=your-email@gmail.com
@@ -110,30 +114,22 @@ SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
 SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
 SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED=true
 SPRING_MAIL_FROM=noreply@ecotrack.app
-GEOAPIFY_KEY=your-geoapify-key
+GEOAPIFY_KEY=your-geoapify-api-key
 CORS_ORIGINS=https://your-vercel-domain.vercel.app
+DATABASE_USERNAME=root
+DATABASE_PASSWORD=your-mysql-password
 ```
 
-### Step 4: Set Up Database
-
-Railway provides a PostgreSQL/MySQL add-on:
-
-1. **In Railway project**: **+ Add** → **Database** → **MySQL**
-2. **Copy the connection URL** and add it to `DATABASE_URL`
-3. **Run database migrations**:
-```bash
-cd backend
-./mvnw flyway:migrate -Dflyway.configFiles=flyway.conf
-# OR if using Liquibase/Hibernate
-# Hibernate will auto-create tables (first deployment only)
-```
+**Important:** Railway's MySQL addon automatically provides `DATABASE_URL` in JDBC format. The backend uses it directly via `spring.datasource.url=${DATABASE_URL}`.
 
 ### Step 5: Get Backend URL
 
-Once deployed, Railway provides a public URL like:
+Once the build completes (5-10 minutes), Railway provides a public URL:
 ```
-https://ecotrack-backend-production-xyz.railway.app
+https://ecotrack-production-xyz.railway.app
 ```
+
+Go to your Railway project → **Deployments** tab to see build progress and logs.
 
 **Save this URL** - you'll need it for Vercel frontend configuration.
 
@@ -216,15 +212,39 @@ curl -I https://your-railway-backend.railway.app/api/health
 - Test API directly: `curl https://backend-url.railway.app/api/waste`
 
 ### Railway deployment fails
-- Check Railway build logs
+- Check Railway build logs for errors
 - Verify Dockerfile is in root directory
 - Ensure `backend/pom.xml` exists
 - Check Java version compatibility (JDK 21 required)
+- Ensure MySQL driver dependency is in pom.xml: `mysql-connector-j`
+
+### "Cannot load driver class: com.mysql.cj.jdbc.Driver"
+- The MySQL JDBC driver is missing from the Maven build
+- **Solution**: Ensure `backend/pom.xml` includes:
+  ```xml
+  <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <scope>runtime</scope>
+  </dependency>
+  ```
+- Rebuild and redeploy:
+  ```bash
+  git add backend/pom.xml
+  git commit -m "fix: Add MySQL connector dependency"
+  git push  # Railway will auto-redeploy
+  ```
 
 ### Database connection errors
 - Verify `DATABASE_URL` environment variable is set
-- Check MySQL credentials in Railway
-- Ensure database migrations ran: `./mvnw flyway:migrate`
+- Railway's MySQL addon auto-provides `DATABASE_URL` in JDBC format
+- Check `application-prod.properties` uses: `spring.datasource.url=${DATABASE_URL}`
+- Ensure MySQL container is running: Check Railway **Deployments** tab for status
+- Test connection: 
+  ```bash
+  # In Railway Terminal (if available)
+  mysql -u root -p$DB_PASSWORD -h $DB_HOST -P $DB_PORT $DB_NAME
+  ```
 
 ### Email notifications not sending
 - Verify `SPRING_MAIL_*` variables in Railway

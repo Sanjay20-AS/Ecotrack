@@ -3,15 +3,17 @@ FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
 WORKDIR /app
 
-# Copy pom.xml and download dependencies
+# Copy pom.xml only first
 COPY backend/pom.xml .
-RUN mvn dependency:go-offline
+
+# Download dependencies (this layer will be cached unless pom.xml changes)
+RUN mvn dependency:go-offline -B -q
 
 # Copy source code
 COPY backend/src ./src
 
 # Build the application
-RUN mvn clean package -DskipTests
+RUN mvn clean package -DskipTests -B -q
 
 # Runtime stage
 FROM eclipse-temurin:21-jre
@@ -21,9 +23,13 @@ WORKDIR /app
 # Copy JAR from builder
 COPY --from=builder /app/target/backend-0.0.1-SNAPSHOT.jar app.jar
 
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD java -cp app.jar org.springframework.boot.loader.JarLauncher || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD java -jar app.jar --version || exit 1
 
 # Expose port
 EXPOSE 8080
