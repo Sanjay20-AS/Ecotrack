@@ -6,6 +6,5 @@
     "VITE_API_URL": {
       "description": "Backend API base URL (without /api suffix)"
     }
-  },
-  "envPrefix": "VITE_"
+  }
 }
